@@ -1,0 +1,34 @@
+<launch>
+    <!-- Load controller parameters -->
+    <rosparam file="$(find hexapod_config)/config/hexapod_controllers.yaml" command="load"/>
+
+    <!-- Load controllers -->
+    <node name="controller_spawn" pkg="controller_manager" type="spawner" respawn="false"
+        output="screen" ns="/hexapod"
+        args=  "joint_state_controller 
+                leg_L1/hip1_joint_position_controller
+                leg_L1/hip2_joint_position_controller
+                leg_L1/knee_joint_position_controller
+                leg_L2/hip1_joint_position_controller
+                leg_L2/hip2_joint_position_controller
+                leg_L2/knee_joint_position_controller
+                leg_L3/hip1_joint_position_controller
+                leg_L3/hip2_joint_position_controller
+                leg_L3/knee_joint_position_controller
+                leg_R1/hip1_joint_position_controller
+                leg_R1/hip2_joint_position_controller
+                leg_R1/knee_joint_position_controller
+                leg_R2/hip1_joint_position_controller
+                leg_R2/hip2_joint_position_controller
+                leg_R2/knee_joint_position_controller
+                leg_R3/hip1_joint_position_controller
+                leg_R3/hip2_joint_position_controller
+                leg_R3/knee_joint_position_controller"
+        />
+
+    <!-- Run joint state publisher -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+        respawn="false" output="screen">
+        <remap from="/joint_states" to="/hexapod/joint_states"/>
+    </node>
+</launch>
