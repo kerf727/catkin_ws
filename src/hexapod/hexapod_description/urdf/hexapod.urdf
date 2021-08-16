@@ -1,110 +1,379 @@
 <robot name="hexapod">
-    <!-- ========================== Body ========================== -->
+    <!-- ========================== Body Link ========================== -->
 
-    <!-- <link name="world"/>
+    <link name="world"/>
     <joint name="base_joint" type="fixed">
         <origin xyz="0 0 0.5" rpy="0 0 0"/>
         <parent link="world"/>
         <child link="body"/>
-    </joint> -->
+    </joint>
     <link name="body">
         <inertial>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <mass value="0.0"/>
-            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+            <mass value="1.0"/>
+            <inertia ixx="0.0008458" iyy="0.0008458" izz="0.0016245" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
-        <visual name="">
+        <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/base.dae"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/base.dae"/>
             </geometry>
         </collision>
     </link>
 
-    <!-- ========================== Femurs ========================== -->
+    <!-- ========================== Hip Links ========================== -->
 
-    <link name="femur_L1">
+    <link name="hip_L1">
         <inertial>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <mass value="0.0"/>
-            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+            <mass value="0.001"/>
+            <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
-        <visual name="">
+        <!-- <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision> -->
+    </link>
+    <link name="hip_R1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.001"/>
+            <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <!-- <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision> -->
+    </link>
+    <link name="hip_L2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.001"/>
+            <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <!-- <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision> -->
+    </link>
+    <link name="hip_R2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.001"/>
+            <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <!-- <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision> -->
+    </link>
+    <link name="hip_L3">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.001"/>
+            <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <!-- <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision> -->
+    </link>
+    <link name="hip_R3">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.001"/>
+            <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <!-- <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision> -->
+    </link>
+
+    <!-- ========================== Femur Links ========================== -->
+
+    <link name="femur_L1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.2"/>
+            <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </collision>
     </link>
     <link name="femur_R1">
         <inertial>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <mass value="0.0"/>
-            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+            <mass value="0.2"/>
+            <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
-        <visual name="">
+        <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="femur_L2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.2"/>
+            <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="femur_R2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.2"/>
+            <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="femur_L3">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.2"/>
+            <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="femur_R3">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.2"/>
+            <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </collision>
     </link>
 
-    <!-- ========================== Tibias ========================== -->
+    <!-- ========================== Tibia Links ========================== -->
 
     <link name="tibia_L1">
         <inertial>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <mass value="0.0"/>
-            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+            <mass value="0.4"/>
+            <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
-        <visual name="">
+        <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </collision>
     </link>
     <link name="tibia_R1">
         <inertial>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <mass value="0.0"/>
-            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+            <mass value="0.4"/>
+            <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
-        <visual name="">
+        <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://hexapod_description/meshes/body.dae"/>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="tibia_L2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.4"/>
+            <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="tibia_R2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.4"/>
+            <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual name="">
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="tibia_L3">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.4"/>
+            <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual name="">
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </collision>
+    </link>
+    <link name="tibia_R3">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.4"/>
+            <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
+        </inertial>
+        <visual name="">
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </collision>
     </link>
@@ -112,7 +381,7 @@
     <!-- ======================= Gazebo collision ======================= -->
 
     <gazebo reference="tibia_L1">
-        <kp>1000000.0</kp>        <!--contact stiffness-->
+        <kp>1000000.0</kp>    <!--contact stiffness-->
         <kd>100.0</kd>        <!--damping-->
         <collision name="tibia_L1_collision">
             <surface>
@@ -138,8 +407,78 @@
             </plugin>
         </sensor> -->
     </gazebo>
+    <gazebo reference="tibia_R1">
+        <kp>1000000.0</kp>    <!--contact stiffness-->
+        <kd>100.0</kd>        <!--damping-->
+        <collision name="tibia_R1_collision">
+            <surface>
+                <friction>
+                    <ode>
+                        <mu>1.0</mu>
+                        <mu2>1.0</mu2>
+                    </ode>
+                </friction>
+            </surface>
+        </collision>
+    </gazebo>
+    <gazebo reference="tibia_L2">
+        <kp>1000000.0</kp>    <!--contact stiffness-->
+        <kd>100.0</kd>        <!--damping-->
+        <collision name="tibia_L2_collision">
+            <surface>
+                <friction>
+                    <ode>
+                        <mu>1.0</mu>
+                        <mu2>1.0</mu2>
+                    </ode>
+                </friction>
+            </surface>
+        </collision>
+    </gazebo>
+    <gazebo reference="tibia_R2">
+        <kp>1000000.0</kp>    <!--contact stiffness-->
+        <kd>100.0</kd>        <!--damping-->
+        <collision name="tibia_R2_collision">
+            <surface>
+                <friction>
+                    <ode>
+                        <mu>1.0</mu>
+                        <mu2>1.0</mu2>
+                    </ode>
+                </friction>
+            </surface>
+        </collision>
+    </gazebo>
+    <gazebo reference="tibia_L3">
+        <kp>1000000.0</kp>    <!--contact stiffness-->
+        <kd>100.0</kd>        <!--damping-->
+        <collision name="tibia_L3_collision">
+            <surface>
+                <friction>
+                    <ode>
+                        <mu>1.0</mu>
+                        <mu2>1.0</mu2>
+                    </ode>
+                </friction>
+            </surface>
+        </collision>
+    </gazebo>
+    <gazebo reference="tibia_R3">
+        <kp>1000000.0</kp>    <!--contact stiffness-->
+        <kd>100.0</kd>        <!--damping-->
+        <collision name="tibia_R3_collision">
+            <surface>
+                <friction>
+                    <ode>
+                        <mu>1.0</mu>
+                        <mu2>1.0</mu2>
+                    </ode>
+                </friction>
+            </surface>
+        </collision>
+    </gazebo>
 
-    <!-- ========================== Feet ========================== -->
+    <!-- ========================== Foot Links ========================== -->
 
     <link name="foot_L1"/>
     <link name="foot_R1"/>
@@ -148,137 +487,188 @@
     <link name="foot_L3"/>
     <link name="foot_R3"/>
 
-    <!-- ========================== Hip Joints ========================== -->
+    <!-- ========================== Hip1 Joints ========================== -->
 
-    <joint name="joint_hip_L1" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+    <joint name="joint_hip1_L1" type="revolute">
+        <origin xyz="-0.02866 0.04964 0.02" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
+        <child link="hip_L1"/>
+        <axis xyz="0 0 1"/>
+        <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+    </joint>
+    <joint name="joint_hip1_R1" type="revolute">
+        <origin xyz="0.02866 0.04964 0.02" rpy="0 0 0"/>
+        <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
+        <parent link="body"/>
+        <child link="hip_R1"/>
+        <axis xyz="0 0 1"/>
+        <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+    </joint>
+    <joint name="joint_hip1_L2" type="revolute">
+        <origin xyz="-0.05732 0 0.02" rpy="0 0 0"/>
+        <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
+        <parent link="body"/>
+        <child link="hip_L2"/>
+        <axis xyz="0 0 1"/>
+        <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+    </joint>
+    <joint name="joint_hip1_R2" type="revolute">
+        <origin xyz="0.05732 0 0.02" rpy="0 0 0"/>
+        <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
+        <parent link="body"/>
+        <child link="hip_R2"/>
+        <axis xyz="0 0 1"/>
+        <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+    </joint>
+    <joint name="joint_hip1_L3" type="revolute">
+        <origin xyz="-0.02866 -0.04964 0.02" rpy="0 0 0"/>
+        <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
+        <parent link="body"/>
+        <child link="hip_L3"/>
+        <axis xyz="0 0 1"/>
+        <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+    </joint>
+    <joint name="joint_hip1_R3" type="revolute">
+        <origin xyz="0.02866 -0.04964 0.02" rpy="0 0 0"/>
+        <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
+        <parent link="body"/>
+        <child link="hip_R3"/>
+        <axis xyz="0 0 1"/>
+        <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+    </joint>
+
+    <!-- ========================== Hip2 Joints ========================== -->
+
+    <joint name="joint_hip2_L1" type="revolute">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
+        <parent link="hip_L1"/>
         <child link="femur_L1"/>
-        <axis xyz="0 1 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
-    <joint name="joint_hip_R1" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+    <joint name="joint_hip2_R1" type="revolute">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
-        <parent link="body"/>
+        <parent link="hip_R1"/>
         <child link="femur_R1"/>
-        <axis xyz="0 1 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
-    <joint name="joint_hip_L2" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+    <joint name="joint_hip2_L2" type="revolute">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
-        <parent link="body"/>
+        <parent link="hip_L2"/>
         <child link="femur_L2"/>
-        <axis xyz="0 1 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
-    <joint name="joint_hip_R2" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+    <joint name="joint_hip2_R2" type="revolute">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
-        <parent link="body"/>
+        <parent link="hip_R2"/>
         <child link="femur_R2"/>
-        <axis xyz="0 1 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
-    <joint name="joint_hip_L3" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+    <joint name="joint_hip2_L3" type="revolute">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
-        <parent link="body"/>
+        <parent link="hip_L3"/>
         <child link="femur_L3"/>
-        <axis xyz="0 1 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
-    <joint name="joint_hip_R3" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+    <joint name="joint_hip2_R3" type="revolute">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
-        <parent link="body"/>
+        <parent link="hip_R3"/>
         <child link="femur_R3"/>
-        <axis xyz="0 1 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
 
     <!-- ========================== Knee Joints ========================== -->
 
     <joint name="joint_knee_L1" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L1"/>
         <child link="tibia_L1"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R1" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R1"/>
         <child link="tibia_R1"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_L2" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L2"/>
         <child link="tibia_L2"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R2" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R2"/>
         <child link="tibia_R2"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_L3" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L3"/>
         <child link="tibia_L3"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R3" type="revolute">
-        <origin xyz="-0.1016 0.1524 0" rpy="1.57 0 -1.57"/>
+        <origin xyz="0 0 0.04" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R3"/>
         <child link="tibia_R3"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
 
     <!-- ========================== Foot Joints ========================== -->
 
     <joint name="joint_foot_L1" type="fixed">
-        <origin xyz="0.2032 0 0" rpy="0 0 0 "/>
+        <origin xyz="0 0 0.08" rpy="0 0 0 "/>
         <parent link="tibia_L1"/>
         <child link="foot_L1"/>
     </joint>
     <joint name="joint_foot_R1" type="fixed">
-        <origin xyz="0.2032 0 0" rpy="0 0 0 "/>
+        <origin xyz="0 0 0.08" rpy="0 0 0 "/>
         <parent link="tibia_R1"/>
         <child link="foot_R1"/>
     </joint>
     <joint name="joint_foot_L2" type="fixed">
-        <origin xyz="0.2032 0 0" rpy="0 0 0 "/>
+        <origin xyz="0 0 0.08" rpy="0 0 0 "/>
         <parent link="tibia_L2"/>
         <child link="foot_L2"/>
     </joint>
     <joint name="joint_foot_R2" type="fixed">
-        <origin xyz="0.2032 0 0" rpy="0 0 0 "/>
+        <origin xyz="0 0 0.08" rpy="0 0 0 "/>
         <parent link="tibia_R2"/>
         <child link="foot_R2"/>
     </joint>
     <joint name="joint_foot_L3" type="fixed">
-        <origin xyz="0.2032 0 0" rpy="0 0 0 "/>
+        <origin xyz="0 0 0.08" rpy="0 0 0 "/>
         <parent link="tibia_L3"/>
         <child link="foot_L3"/>
     </joint>
     <joint name="joint_foot_R3" type="fixed">
-        <origin xyz="0.2032 0 0" rpy="0 0 0 "/>
+        <origin xyz="0 0 0.08" rpy="0 0 0 "/>
         <parent link="tibia_R3"/>
         <child link="foot_R3"/>
     </joint>
@@ -291,6 +681,181 @@
             <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
         </joint>
         <actuator name="joint_hip1_L1_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_hip2_L1">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip2_L1">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip2_L1_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_knee_L1">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_knee_L1">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_knee_L1_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <transmission name="trans_joint_hip1_R1">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip1_R1">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip1_R1_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_hip2_R1">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip2_R1">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip2_R1_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_knee_R1">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_knee_R1">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_knee_R1_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <transmission name="trans_joint_hip1_L2">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip1_L2">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip1_L2_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_hip2_L2">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip2_L2">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip2_L2_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_knee_L2">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_knee_L2">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_knee_L2_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <transmission name="trans_joint_hip1_R2">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip1_R2">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip1_R2_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_hip2_R2">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip2_R2">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip2_R2_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_knee_R2">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_knee_R2">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_knee_R2_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <transmission name="trans_joint_hip1_L3">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip1_L3">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip1_L3_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_hip2_L3">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip2_L3">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip2_L3_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_knee_L3">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_knee_L3">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_knee_L3_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <transmission name="trans_joint_hip1_R3">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip1_R3">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip1_R3_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_hip2_R3">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_hip2_R3">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_hip2_R3_motor">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    <transmission name="trans_joint_knee_R3">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="joint_knee_R3">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="joint_knee_R3_motor">
             <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
             <mechanicalReduction>1</mechanicalReduction>
         </actuator>
