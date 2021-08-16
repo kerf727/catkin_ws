@@ -9,18 +9,18 @@
     </joint>
     <link name="body">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.01" rpy="0.0 0.0 0.0"/> -->
             <mass value="1.0"/>
             <inertia ixx="0.0008458" iyy="0.0008458" izz="0.0016245" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/base.dae"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/base.dae"/>
             </geometry>
@@ -31,7 +31,7 @@
 
     <link name="hip_L1">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.001"/>
             <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
@@ -50,7 +50,7 @@
     </link>
     <link name="hip_R1">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.001"/>
             <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
@@ -69,7 +69,7 @@
     </link>
     <link name="hip_L2">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.001"/>
             <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
@@ -88,7 +88,7 @@
     </link>
     <link name="hip_R2">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.001"/>
             <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
@@ -107,7 +107,7 @@
     </link>
     <link name="hip_L3">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.001"/>
             <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
@@ -126,7 +126,7 @@
     </link>
     <link name="hip_R3">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.001"/>
             <inertia ixx="0.0001" iyy="0.0001" izz="0.000001" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
@@ -148,135 +148,135 @@
 
     <link name="femur_L1">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.2"/>
             <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
-        <collision>
+        <!-- <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
-        </collision>
+        </collision> -->
     </link>
     <link name="femur_R1">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.2"/>
             <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
-        <collision>
+        <!-- <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
-        </collision>
+        </collision> -->
     </link>
     <link name="femur_L2">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.2"/>
             <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
-        <collision>
+        <!-- <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
-        </collision>
+        </collision> -->
     </link>
     <link name="femur_R2">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.2"/>
             <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
-        <collision>
+        <!-- <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
-        </collision>
+        </collision> -->
     </link>
     <link name="femur_L3">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.2"/>
             <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
-        <collision>
+        <!-- <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
-        </collision>
+        </collision> -->
     </link>
     <link name="femur_R3">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.2"/>
             <inertia ixx="0.00010667" iyy="0.00010667" izz="0.0000025" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
         </visual>
-        <collision>
+        <!-- <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/femur.dae"/>
             </geometry>
-        </collision>
+        </collision> -->
     </link>
 
     <!-- ========================== Tibia Links ========================== -->
 
     <link name="tibia_L1">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.4"/>
             <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
@@ -284,18 +284,18 @@
     </link>
     <link name="tibia_R1">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.4"/>
             <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
@@ -303,18 +303,18 @@
     </link>
     <link name="tibia_L2">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.4"/>
             <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
@@ -322,18 +322,18 @@
     </link>
     <link name="tibia_R2">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.4"/>
             <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual name="">
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
@@ -341,18 +341,18 @@
     </link>
     <link name="tibia_L3">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.4"/>
             <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual name="">
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
@@ -360,18 +360,18 @@
     </link>
     <link name="tibia_R3">
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <mass value="0.4"/>
             <inertia ixx="0.00085333" iyy="0.00085333" izz="0.000005" ixy="0.0" ixz="0.0" iyz="0.0"/>
         </inertial>
         <visual name="">
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <!-- <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/> -->
             <geometry>
                 <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
             </geometry>
@@ -393,7 +393,6 @@
                 </friction>
             </surface>
         </collision>
-
         <!-- <sensor name="tibia_L1_sensor" type="contact">
             <selfCollide>true</selfCollide>
             <alwaysOn>true</alwaysOn>
@@ -490,7 +489,8 @@
     <!-- ========================== Hip1 Joints ========================== -->
 
     <joint name="joint_hip1_L1" type="revolute">
-        <origin xyz="-0.02866 0.04964 0.02" rpy="0 0 0"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0 0 2.0944"/>
+        <!-- <origin xyz="-0.02866 0.04964 0.0" rpy="0 0 2.0944"/> -->
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_L1"/>
@@ -498,7 +498,8 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_R1" type="revolute">
-        <origin xyz="0.02866 0.04964 0.02" rpy="0 0 0"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0 0 1.0472"/>
+        <!-- <origin xyz="0.02866 0.04964 0.0" rpy="0 0 1.0472"/> -->
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_R1"/>
@@ -506,7 +507,8 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_L2" type="revolute">
-        <origin xyz="-0.05732 0 0.02" rpy="0 0 0"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0 0 3.1416"/>
+        <!-- <origin xyz="-0.05732 0 0.0" rpy="0 0 3.1416"/> -->
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_L2"/>
@@ -514,7 +516,8 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_R2" type="revolute">
-        <origin xyz="0.05732 0 0.02" rpy="0 0 0"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+        <!-- <origin xyz="0.05732 0.0 0.0" rpy="0 0 0"/> -->
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_R2"/>
@@ -522,7 +525,8 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_L3" type="revolute">
-        <origin xyz="-0.02866 -0.04964 0.02" rpy="0 0 0"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0 0.5 -2.0944"/>
+        <!-- <origin xyz="-0.02866 -0.04964 0.0" rpy="0 0 -2.0944"/> -->
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_L3"/>
@@ -530,7 +534,8 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_R3" type="revolute">
-        <origin xyz="0.02866 -0.04964 0.02" rpy="0 0 0"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0.5 0 -1.0472"/>
+        <!-- <origin xyz="0.02866 -0.04964 0.0" rpy="0 0 -1.0472"/> -->
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_R3"/>
@@ -592,51 +597,51 @@
     <!-- ========================== Knee Joints ========================== -->
 
     <joint name="joint_knee_L1" type="revolute">
-        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L1"/>
         <child link="tibia_L1"/>
-        <axis xyz="0 1 0"/>
+        <axis xyz="0 0 1"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R1" type="revolute">
-        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R1"/>
         <child link="tibia_R1"/>
-        <axis xyz="0 1 0"/>
+        <axis xyz="0 0 1"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_L2" type="revolute">
-        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L2"/>
         <child link="tibia_L2"/>
-        <axis xyz="0 1 0"/>
+        <axis xyz="0 0 1"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R2" type="revolute">
-        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R2"/>
         <child link="tibia_R2"/>
-        <axis xyz="0 1 0"/>
+        <axis xyz="0 0 1"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_L3" type="revolute">
-        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L3"/>
         <child link="tibia_L3"/>
-        <axis xyz="0 1 0"/>
+        <axis xyz="0 0 1"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R3" type="revolute">
-        <origin xyz="0 0 0.04" rpy="0 0 0"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R3"/>
         <child link="tibia_R3"/>
-        <axis xyz="0 1 0"/>
+        <axis xyz="0 0 1"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
 
