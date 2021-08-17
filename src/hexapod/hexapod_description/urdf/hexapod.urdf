@@ -489,8 +489,7 @@
     <!-- ========================== Hip1 Joints ========================== -->
 
     <joint name="joint_hip1_L1" type="revolute">
-        <origin xyz="0.0 0.0 0.0" rpy="0 0 2.0944"/>
-        <!-- <origin xyz="-0.02866 0.04964 0.0" rpy="0 0 2.0944"/> -->
+        <origin xyz="-0.02866 0.04964 0.01" rpy="-1.5708 0 0.5236"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_L1"/>
@@ -498,8 +497,7 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_R1" type="revolute">
-        <origin xyz="0.0 0.0 0.0" rpy="0 0 1.0472"/>
-        <!-- <origin xyz="0.02866 0.04964 0.0" rpy="0 0 1.0472"/> -->
+        <origin xyz="0.02866 0.04964 0.01" rpy="-1.5708 0 -0.5236"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_R1"/>
@@ -507,8 +505,7 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_L2" type="revolute">
-        <origin xyz="0.0 0.0 0.0" rpy="0 0 3.1416"/>
-        <!-- <origin xyz="-0.05732 0 0.0" rpy="0 0 3.1416"/> -->
+        <origin xyz="-0.05732 0.0 0.01" rpy="-1.5708 0 1.5708"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_L2"/>
@@ -516,8 +513,7 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_R2" type="revolute">
-        <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
-        <!-- <origin xyz="0.05732 0.0 0.0" rpy="0 0 0"/> -->
+        <origin xyz="0.05732 0.0 0.01" rpy="-1.5708 0 -1.5708"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_R2"/>
@@ -525,8 +521,7 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_L3" type="revolute">
-        <origin xyz="0.0 0.0 0.0" rpy="0 0.5 -2.0944"/>
-        <!-- <origin xyz="-0.02866 -0.04964 0.0" rpy="0 0 -2.0944"/> -->
+        <origin xyz="-0.02866 -0.04964 0.01" rpy="-1.5708 0 2.618"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_L3"/>
@@ -534,8 +529,7 @@
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_hip1_R3" type="revolute">
-        <origin xyz="0.0 0.0 0.0" rpy="0.5 0 -1.0472"/>
-        <!-- <origin xyz="0.02866 -0.04964 0.0" rpy="0 0 -1.0472"/> -->
+        <origin xyz="0.02866 -0.04964 0.01" rpy="-1.5708 0 -2.618"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="body"/>
         <child link="hip_R3"/>
@@ -589,7 +583,7 @@
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="hip_R3"/>
-        <child link="femur_R3"/>
+        <child link="femur_R3"/> 
         <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
@@ -597,51 +591,51 @@
     <!-- ========================== Knee Joints ========================== -->
 
     <joint name="joint_knee_L1" type="revolute">
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0.04" rpy="-1.5708 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L1"/>
         <child link="tibia_L1"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R1" type="revolute">
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0.04" rpy="-1.5708 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R1"/>
         <child link="tibia_R1"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_L2" type="revolute">
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0.04" rpy="-1.5708 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L2"/>
         <child link="tibia_L2"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R2" type="revolute">
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0.04" rpy="-1.5708 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R2"/>
         <child link="tibia_R2"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_L3" type="revolute">
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0.04" rpy="-1.5708 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_L3"/>
         <child link="tibia_L3"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
     <joint name="joint_knee_R3" type="revolute">
-        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <origin xyz="0 0 0.04" rpy="-1.5708 0 0"/>
         <limit lower="-3" upper="3" effort="30.0" velocity="6"/>
         <parent link="femur_R3"/>
         <child link="tibia_R3"/>
-        <axis xyz="0 0 1"/>
+        <axis xyz="0 1 0"/>
         <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
     </joint>
 
