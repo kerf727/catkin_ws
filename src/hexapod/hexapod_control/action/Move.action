@@ -1,0 +1,14 @@
+# Define the goal
+int32 gaitType
+float64 distance
+float64 time
+---
+# Define the result
+float64 distance
+float64 time
+---
+# Define a feedback message
+int32 stage
+string description
+float64 distance
+float64 time

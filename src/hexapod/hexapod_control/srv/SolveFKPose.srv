@@ -1,0 +1,7 @@
+# Define the request
+float64[] jointPositions
+---
+# Define the result
+quadruped_control/Pose solution
+int32 result
+string error_message
