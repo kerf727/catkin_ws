@@ -9,5 +9,5 @@ int32 stepsTaken
 # Define a feedback message
 float64 currentPhase
 string stage
-quadruped_control/Pose currentPose
-quadruped_control/Pose targetPose
+hexapod_control/Pose currentPose
+hexapod_control/Pose targetPose

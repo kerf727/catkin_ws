@@ -62,22 +62,23 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-#   Message1.msg
-#   Message2.msg
+  Pose.msg
 )
 
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
-#   Service1.srv
-#   Service2.srv
+  SolveFKPose.srv
+  SolveIKPose.srv
 )
 
 ## Generate actions in the 'action' folder
 add_action_files(
   FILES
-#   Action1.action
-#   Action2.action
+  SetPose.action
+  SetJoint.action
+  Gait.action
+  Move.action
 )
 
 ## Generate added messages and services with any dependencies listed here
@@ -151,6 +152,24 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/hexapod_control_node.cpp)
+add_executable(kinematics_solver src/kinematics_solver.cpp)
+add_executable(leg_L1_joint_action_server src/leg_L1_joint_action_server.cpp)
+# add_executable(leg_R1_joint_action_server src/leg_R1_joint_action_server.cpp)
+# add_executable(leg_L2_joint_action_server src/leg_L2_joint_action_server.cpp)
+# add_executable(leg_R2_joint_action_server src/leg_R2_joint_action_server.cpp)
+# add_executable(leg_L3_joint_action_server src/leg_L3_joint_action_server.cpp)
+# add_executable(leg_R3_joint_action_server src/leg_R3_joint_action_server.cpp)
+add_executable(leg_L1_pose_action_server src/leg_L1_pose_action_server.cpp)
+# add_executable(leg_R1_pose_action_server src/leg_R1_pose_action_server.cpp)
+# add_executable(leg_L2_pose_action_server src/leg_L2_pose_action_server.cpp)
+# add_executable(leg_R2_pose_action_server src/leg_R2_pose_action_server.cpp)
+# add_executable(leg_L3_pose_action_server src/leg_L3_pose_action_server.cpp)
+# add_executable(leg_R3_pose_action_server src/leg_R3_pose_action_server.cpp)
+# add_executable(gait_controller src/gait_controller.cpp)
+# add_executable(walk_node scripts/walk_node.cpp)
+# add_executable(force_sensor_node src/force_sensor_node.cpp)
+# add_executable(stability_margin_node src/stability_margin_node.cpp)
+# add_executable(com_publisher src/com_publisher.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -161,11 +180,47 @@ include_directories(
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(kinematics_solver ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(leg_L1_joint_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_R1_joint_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_L2_joint_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_R2_joint_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_L3_joint_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_R3_joint_action_server ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(leg_L1_pose_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_R1_pose_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_L2_pose_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_R2_pose_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_L3_pose_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(leg_R3_pose_action_server ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(gait_controller ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(walk_node ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(force_sensor_node ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(stability_margin_node ${PROJECT_NAME}_generate_messages_cpp)
+# add_dependencies(com_publisher ${PROJECT_NAME}_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+target_link_libraries(kinematics_solver ${catkin_LIBRARIES})
+target_link_libraries(leg_L1_joint_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_R1_joint_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_L2_joint_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_R2_joint_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_L3_joint_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_R3_joint_action_server ${catkin_LIBRARIES})
+target_link_libraries(leg_L1_pose_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_R1_pose_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_L2_pose_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_R2_pose_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_L3_pose_action_server ${catkin_LIBRARIES})
+# target_link_libraries(leg_R3_pose_action_server ${catkin_LIBRARIES})
+# target_link_libraries(gait_controller ${catkin_LIBRARIES})
+# target_link_libraries(walk_node ${catkin_LIBRARIES})
+# target_link_libraries(force_sensor_node ${catkin_LIBRARIES})
+# target_link_libraries(stability_margin_node ${catkin_LIBRARIES})
+# target_link_libraries(com_publisher ${catkin_LIBRARIES})
 
 #############
 ## Install ##

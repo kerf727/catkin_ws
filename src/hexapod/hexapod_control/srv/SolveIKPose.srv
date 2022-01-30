@@ -1,6 +1,6 @@
 # Define the request
 float64[] initialState
-quadruped_control/Pose goal
+hexapod_control/Pose goal
 ---
 # Define the result
 float64[] solution
