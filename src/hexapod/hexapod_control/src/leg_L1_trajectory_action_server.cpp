@@ -361,7 +361,7 @@ private:
         if (phase < duty_factor)
         {
             double supportPhase = phase / duty_factor;
-            x = x = x_offset + (strideLength / 2 - strideLength * supportPhase);
+            x = x_offset + (strideLength / 2 - strideLength * supportPhase);
             y = y_offset;
             z = z_offset;
             stage = "Support Phase";

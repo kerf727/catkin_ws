@@ -32,7 +32,7 @@ public:
 
     ~SetJointAction()
     {
-        this->node->shutdown();
+        this->node.shutdown();
     }
 
     void executeCB(const hexapod_control::SetJointGoalConstPtr& goal)
@@ -162,10 +162,10 @@ public:
             }
         }
 
-        this->currentState.name = {temp.name[hip1Index], temp.name[hip2Index], temp.name[kneeIndex]};
+        this->currentState.name     = {temp.name[hip1Index],     temp.name[hip2Index],     temp.name[kneeIndex]};
         this->currentState.position = {temp.position[hip1Index], temp.position[hip2Index], temp.position[kneeIndex]};
         this->currentState.velocity = {temp.velocity[hip1Index], temp.velocity[hip2Index], temp.velocity[kneeIndex]};
-        this->currentState.effort = {temp.effort[hip1Index], temp.effort[hip2Index], temp.effort[kneeIndex]};
+        this->currentState.effort   = {temp.effort[hip1Index],   temp.effort[hip2Index],   temp.effort[kneeIndex]};
     }
 
 private:
