@@ -22,9 +22,9 @@
     <node name="leg_R3_pose_action_server" pkg="hexapod_control" type="leg_R3_pose_action_server" respawn="true"/> -->
 
     <!-- Start up gait controllers -->
+    <node name="leg_L1_trajectory_action_server" pkg="hexapod_control" type="leg_L1_trajectory_action_server" respawn="false"/>
     <!-- <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
     <node name="gait_controller" pkg="hexapod_control" type="gait_controller" respawn="false"/>
-    <node name="leg_L1_trajectory_action_server" pkg="hexapod_control" type="leg_L1_trajectory_action_server" respawn="false"/>
     <node name="leg_R1_trajectory_action_server" pkg="hexapod_control" type="leg_R1_trajectory_action_server" respawn="false"/>
     <node name="leg_L2_trajectory_action_server" pkg="hexapod_control" type="leg_L2_trajectory_action_server" respawn="false"/>
     <node name="leg_R2_trajectory_action_server" pkg="hexapod_control" type="leg_R2_trajectory_action_server" respawn="false"/>
