@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "ROS",
+            "name": "Linux",
             "browse": {
                 "databaseFilename": "",
                 "limitSymbolsToIncludedHeaders": true
@@ -15,8 +15,7 @@
             "intelliSenseMode": "gcc-x64",
             "compilerPath": "/usr/bin/g++",
             "cStandard": "c11",
-            "cppStandard": "c++17",
-            "configurationProvider": "ms-vscode.cmake-tools"
+            "cppStandard": "c++17"
         }
     ],
     "version": 4
