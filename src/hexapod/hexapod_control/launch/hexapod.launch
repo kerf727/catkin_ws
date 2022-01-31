@@ -7,29 +7,31 @@
 
     <!-- Start up joint action servers -->
     <node name="leg_L1_joint_action_server" pkg="hexapod_control" type="leg_L1_joint_action_server" respawn="false"/>
-    <!-- <node name="leg_R1_joint_action_server" pkg="hexapod_control" type="leg_R1_joint_action_server" respawn="false"/>
+    <node name="leg_R1_joint_action_server" pkg="hexapod_control" type="leg_R1_joint_action_server" respawn="false"/>
     <node name="leg_L2_joint_action_server" pkg="hexapod_control" type="leg_L2_joint_action_server" respawn="false"/>
     <node name="leg_R2_joint_action_server" pkg="hexapod_control" type="leg_R2_joint_action_server" respawn="false"/>
     <node name="leg_L3_joint_action_server" pkg="hexapod_control" type="leg_L3_joint_action_server" respawn="false"/>
-    <node name="leg_R3_joint_action_server" pkg="hexapod_control" type="leg_R3_joint_action_server" respawn="false"/> -->
+    <node name="leg_R3_joint_action_server" pkg="hexapod_control" type="leg_R3_joint_action_server" respawn="false"/>
 
     <!-- Start up pose action servers -->
     <node name="leg_L1_pose_action_server" pkg="hexapod_control" type="leg_L1_pose_action_server" respawn="true"/>
-    <!-- <node name="leg_R1_pose_action_server" pkg="hexapod_control" type="leg_R1_pose_action_server" respawn="true"/>
+    <node name="leg_R1_pose_action_server" pkg="hexapod_control" type="leg_R1_pose_action_server" respawn="true"/>
     <node name="leg_L2_pose_action_server" pkg="hexapod_control" type="leg_L2_pose_action_server" respawn="true"/>
     <node name="leg_R2_pose_action_server" pkg="hexapod_control" type="leg_R2_pose_action_server" respawn="true"/>
     <node name="leg_L3_pose_action_server" pkg="hexapod_control" type="leg_L3_pose_action_server" respawn="true"/>
-    <node name="leg_R3_pose_action_server" pkg="hexapod_control" type="leg_R3_pose_action_server" respawn="true"/> -->
+    <node name="leg_R3_pose_action_server" pkg="hexapod_control" type="leg_R3_pose_action_server" respawn="true"/>
 
-    <!-- Start up gait controllers -->
+    <!-- Start up trajectory action servers -->
     <node name="leg_L1_trajectory_action_server" pkg="hexapod_control" type="leg_L1_trajectory_action_server" respawn="false"/>
-    <!-- <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
-    <node name="gait_controller" pkg="hexapod_control" type="gait_controller" respawn="false"/>
     <node name="leg_R1_trajectory_action_server" pkg="hexapod_control" type="leg_R1_trajectory_action_server" respawn="false"/>
     <node name="leg_L2_trajectory_action_server" pkg="hexapod_control" type="leg_L2_trajectory_action_server" respawn="false"/>
     <node name="leg_R2_trajectory_action_server" pkg="hexapod_control" type="leg_R2_trajectory_action_server" respawn="false"/>
     <node name="leg_L3_trajectory_action_server" pkg="hexapod_control" type="leg_L3_trajectory_action_server" respawn="false"/>
-    <node name="leg_R3_trajectory_action_server" pkg="hexapod_control" type="leg_R3_trajectory_action_server" respawn="false"/> -->
+    <node name="leg_R3_trajectory_action_server" pkg="hexapod_control" type="leg_R3_trajectory_action_server" respawn="false"/>
+    
+    <!-- Start up gait controller -->
+    <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
+    <node name="gait_controller" pkg="hexapod_control" type="gait_controller" respawn="false"/>
 
     <!-- Start up force sensor and stability stuff -->
     <!-- <node name="force_sensor_node" pkg="hexapod_control" type="force_sensor_node" respawn="true"/>

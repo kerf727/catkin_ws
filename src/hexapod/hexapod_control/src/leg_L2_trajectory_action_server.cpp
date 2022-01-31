@@ -14,7 +14,7 @@ class SetTrajectoryAction
 public:
     SetTrajectoryAction(std::string name):
         server(node, name, boost::bind(&SetTrajectoryAction::executeCB, this, _1), false),
-        client("leg_L1_pose_action", true),
+        client("leg_L2_pose_action", true),
         actionName(name)
     {
         this->node = node;
@@ -186,8 +186,8 @@ private:
 	double strideHeight;
 	double dutyFactor;
 	double bodyVelocity;
-    double xOffset = -0.08232;
-    double yOffset = 0.1426;
+    double xOffset = -0.16464;
+    double yOffset = 0.0;
     double zOffset = -0.03928;
     int steps = 0;
     bool stop = false;
@@ -251,10 +251,10 @@ private:
 int main(int argc, char **argv)
 {
     ROS_INFO("Starting Trajectory Action Server...");
-    ros::init(argc, argv, "leg_L1_trajectory_action");
+    ros::init(argc, argv, "leg_L2_trajectory_action");
     ROS_INFO("Initialized ros...");
 
-    SetTrajectoryAction actionServer("leg_L1_trajectory_action");
+    SetTrajectoryAction actionServer("leg_L2_trajectory_action");
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;
