@@ -86,7 +86,7 @@ public:
             }
             else
             {
-                position = SineTrajectory(currentPhase);
+                position = RotateInPlace(currentPhase);
             }
 
             if ((stop || preempted) && stage.compare("Support Phase") == 0)
@@ -214,6 +214,40 @@ private:
     }
 
     geometry_msgs::Point SineTrajectory(double phase)
+    {
+        // Position w.r.t. body
+        geometry_msgs::Point position;
+        double x, y, z;
+
+        double strideLength = strideTime * bodyVelocity;
+
+        // Support phase
+        if (phase < dutyFactor)
+        {
+            double supportPhase = phase / dutyFactor;
+            x = xOffset;
+            y = yOffset + (strideLength / 2 - strideLength * supportPhase);
+            z = zOffset;
+            stage = "Support Phase";
+        }
+        // Transfer phase
+        else
+        {
+            double transferPhase = (phase - dutyFactor) / (1.0 - dutyFactor);
+            x = xOffset;
+            y = yOffset + (strideLength * transferPhase - strideLength / 2);
+            z = 0.5 * strideHeight * cos(2 * M_PI * transferPhase - M_PI) + zOffset + strideHeight/2;
+            stage = "Transfer Phase";
+        }
+        
+        position.x = x;
+        position.y = y;
+        position.z = z;
+
+        return position;
+    }
+
+    geometry_msgs::Point RotateInPlace(double phase)
     {
         // Position w.r.t. body
         geometry_msgs::Point position;
