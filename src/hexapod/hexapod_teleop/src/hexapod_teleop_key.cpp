@@ -17,9 +17,9 @@ public:
     void keyLoop();
 
 private:
-    ros::NodeHandle nh_;
-    ros::Publisher twist_pub_;
-    double pos_x, rot_x, pos_y, rot_y, pos_z, rot_z, p_scale, r_scale;
+    ros::NodeHandle node;
+    ros::Publisher twistPublisher;
+    double pos_x, rot_x, pos_y, rot_y, pos_z, rot_z, pos_scale, rot_scale;
 };
 
 TeleopHexapod::TeleopHexapod():
@@ -29,13 +29,13 @@ TeleopHexapod::TeleopHexapod():
     rot_y(0),
     pos_z(0),
     rot_z(0),
-    p_scale(1.0),
-    r_scale(1.0)
+    pos_scale(1.0),
+    rot_scale(1.0)
 {
-    nh_.param("scale_pos", p_scale, p_scale);
-    nh_.param("scale_rot", r_scale, r_scale);
+    node.param("scale_pos", pos_scale, pos_scale);
+    node.param("scale_rot", rot_scale, rot_scale);
 
-    twist_pub_ = nh_.advertise<geometry_msgs::Twist>("/hexapod/teleop", 1);
+    twistPublisher = node.advertise<geometry_msgs::Twist>("/hexapod/teleop", 1);
 }
 
 int kfd = 0;
@@ -53,11 +53,8 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "teleop_hexapod");
     TeleopHexapod teleop_hexapod;
-
     signal(SIGINT,quit);
-
     teleop_hexapod.keyLoop();
-
     return(0);
 }
 
@@ -96,38 +93,38 @@ void TeleopHexapod::keyLoop()
         switch(c)
         {
             case KEYCODE_L:
-            ROS_DEBUG("LEFT");
-            pos_x = -0.2;
-            dirty = true;
-            break;
+                ROS_DEBUG("LEFT");
+                pos_x = -0.2;
+                dirty = true;
+                break;
             case KEYCODE_R:
-            ROS_DEBUG("RIGHT");
-            pos_x = 0.2;
-            dirty = true;
-            break;
+                ROS_DEBUG("RIGHT");
+                pos_x = 0.2;
+                dirty = true;
+                break;
             case KEYCODE_U:
-            ROS_DEBUG("UP");
-            pos_y = 0.2;
-            dirty = true;
-            break;
+                ROS_DEBUG("UP");
+                pos_y = 0.2;
+                dirty = true;
+                break;
             case KEYCODE_D:
-            ROS_DEBUG("DOWN");
-            pos_y = -0.2;
-            dirty = true;
-            break;
+                ROS_DEBUG("DOWN");
+                pos_y = -0.2;
+                dirty = true;
+                break;
         }
 
         geometry_msgs::Twist twist;
-        twist.linear.x = p_scale*pos_x;
-        twist.linear.y = p_scale*pos_x;
-        twist.linear.z = p_scale*pos_x;
-        twist.angular.x = r_scale*rot_x;
-        twist.angular.y = r_scale*rot_y;
-        twist.angular.z = r_scale*rot_z;
+        twist.linear.x  = pos_scale*pos_x;
+        twist.linear.y  = pos_scale*pos_x;
+        twist.linear.z  = pos_scale*pos_x;
+        twist.angular.x = rot_scale*rot_x;
+        twist.angular.y = rot_scale*rot_y;
+        twist.angular.z = rot_scale*rot_z;
         
         if(dirty == true)
         {
-            twist_pub_.publish(twist);    
+            twistPublisher.publish(twist);    
             dirty=false;
         }
     }
