@@ -1,0 +1,276 @@
+<?xml version="1.0"?>
+<robot name="hexapod" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- ============================ Constants ============================ -->
+
+    <xacro:property name="robot_name"   value="hexapod"/>
+    <xacro:property name="base_radius"  value="0.08"/>
+    <xacro:property name="coxa_length"  value="0.01"/>
+    <xacro:property name="femur_length" value="0.04"/>
+    <xacro:property name="tibia_length" value="0.08"/>
+    <xacro:property name="base_mass"    value="2.0"/>
+    <xacro:property name="coxa_mass"    value="0.1"/>
+    <xacro:property name="femur_mass"   value="0.4"/>
+    <xacro:property name="tibia_mass"   value="0.8"/>
+    <xacro:property name="inertia"      value="0.1"/>
+    <xacro:property name="L1_angle"     value="${2*pi/3}"/>
+    <xacro:property name="R1_angle"     value="${pi/3}"/>
+    <xacro:property name="L2_angle"     value="${pi}"/>
+    <xacro:property name="R2_angle"     value="${0}"/>
+    <xacro:property name="L3_angle"     value="${4*pi/3}"/>
+    <xacro:property name="R3_angle"     value="${5*pi/3}"/>
+
+    <!-- =========================== Base Macro =========================== -->
+
+    <xacro:macro name="base">
+
+        <link name="${robot_name}/base_link">
+            <inertial>
+                <mass value="${base_mass}"/>
+                <inertia ixx="${inertia}" iyy="${inertia}" izz="${inertia}" ixy="0.0" ixz="0.0" iyz="0.0"/>
+            </inertial>
+            <visual>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/base.dae"/>
+                </geometry>
+            </visual>
+            <collision>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/base.dae"/>
+                </geometry>
+            </collision>
+        </link>
+
+    </xacro:macro>
+
+    <!-- ============================ Leg Macro ============================ -->
+
+    <xacro:macro name="leg" params="prefix x y z pitch roll yaw">
+
+        <!-- Links -->
+
+        <link name="${robot_name}/${prefix}_coxa_link">
+            <inertial>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <mass value="${coxa_mass}"/>
+                <inertia ixx="${inertia}" iyy="${inertia}" izz="${inertia}" ixy="0.0" ixz="0.0" iyz="0.0"/>
+            </inertial>
+            <visual name="">
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/coxa.dae"/>
+                </geometry>
+            </visual>
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/coxa.dae"/>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name="${robot_name}/${prefix}_femur_link">
+            <inertial>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <mass value="${femur_mass}"/>
+                <inertia ixx="${inertia}" iyy="${inertia}" izz="${inertia}" ixy="0.0" ixz="0.0" iyz="0.0"/>
+            </inertial>
+            <visual name="">
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+                </geometry>
+            </visual>
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/femur.dae"/>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name="${robot_name}/${prefix}_tibia_link">
+            <inertial>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <mass value="${tibia_mass}"/>
+                <inertia ixx="${inertia}" iyy="${inertia}" izz="${inertia}" ixy="0.0" ixz="0.0" iyz="0.0"/>
+            </inertial>
+            <visual name="">
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+                </geometry>
+            </visual>
+            <collision>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://hexapod_description/meshes/tibia.dae"/>
+                </geometry>
+            </collision>
+        </link>
+
+        <link name="${robot_name}/${prefix}_foot_link"/>
+
+        <!-- Joints -->
+        
+        <joint name="${prefix}_hip_joint" type="revolute">
+            <origin xyz="${x} ${y} ${z}" rpy="${pitch} ${roll} ${yaw}"/>
+            <parent link="${robot_name}/base_link"/>
+            <child link="${robot_name}/${prefix}_coxa_link"/>
+            <axis xyz="0 1 0"/>
+            <limit lower="${-pi/2}" upper="${pi/2}" effort="30" velocity="${pi}"/>
+            <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+        </joint>
+
+        <joint name="${prefix}_knee_joint" type="revolute">
+            <origin xyz="0 0 ${coxa_length}" rpy="0 0 0"/>
+            <parent link="${robot_name}/${prefix}_coxa_link"/>
+            <child link="${robot_name}/${prefix}_femur_link"/>
+            <axis xyz="1 0 0"/>
+            <limit lower="${-pi/6}" upper="${pi/2}" effort="30" velocity="${pi}"/>
+            <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+        </joint>
+
+        <joint name="${prefix}_ankle_joint" type="revolute">
+            <origin xyz="0 0 ${femur_length}" rpy="0 0 0"/>
+            <parent link="${robot_name}/${prefix}_femur_link"/>
+            <child link="${robot_name}/${prefix}_tibia_link"/>
+            <axis xyz="1 0 0"/>
+            <limit lower="0" upper="${2*pi/3}" effort="30" velocity="${pi}"/>
+            <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+        </joint>
+
+        <joint name="${prefix}_foot_joint" type="fixed">
+            <origin xyz="0 0 ${tibia_length}" rpy="0 0 0"/>
+            <parent link="${robot_name}/${prefix}_tibia_link"/>
+            <child link="${robot_name}/${prefix}_foot_link"/>
+        </joint>
+
+        <!-- Gazebo Collision -->
+
+        <gazebo reference="${prefix}_tibia_link">
+            <kp>1000000.0</kp>    <!-- contact stiffness -->
+            <kd>100.0</kd>        <!-- damping -->
+            <collision name="${prefix}_tibia_collision">
+                <surface>
+                    <friction>
+                        <ode>
+                            <mu>1.0</mu>
+                            <mu2>1.0</mu2>
+                        </ode>
+                    </friction>
+                </surface>
+            </collision>
+            <!-- <sensor name="${prefix}_tibia_sensor" type="contact">
+                <selfCollide>true</selfCollide>
+                <alwaysOn>true</alwaysOn>
+                <updateRate>40.0</updateRate>
+                <contact>
+                    <collision>${prefix}_tibia_collision</collision>
+                </contact>
+                <plugin name="gazebo_ros_bumper_controller" filename="libgazebo_ros_bumper.so">
+                    <bumperTopicName>${prefix}_tibia_bumper</bumperTopicName>
+                    <frameName>world</frameName>
+                </plugin>
+            </sensor> -->
+        </gazebo>
+
+        <!-- Transmission -->
+
+        <transmission name="${prefix}_hip_joint_trans">
+            <type>transmission_interface/SimpleTransmission</type>
+            <joint name="${prefix}_hip_joint">
+                <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            </joint>
+            <actuator name="${prefix}_hip_joint_motor">
+                <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+                <mechanicalReduction>1</mechanicalReduction>
+            </actuator>
+        </transmission>
+
+        <transmission name="${prefix}_knee_joint_trans">
+            <type>transmission_interface/SimpleTransmission</type>
+            <joint name="${prefix}_knee_joint">
+                <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            </joint>
+            <actuator name="${prefix}_knee_joint_motor">
+                <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+                <mechanicalReduction>1</mechanicalReduction>
+            </actuator>
+        </transmission>
+
+        <transmission name="${prefix}_ankle_joint_trans">
+            <type>transmission_interface/SimpleTransmission</type>
+            <joint name="${prefix}_ankle_joint">
+                <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+            </joint>
+            <actuator name="${prefix}_ankle_joint_motor">
+                <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+                <mechanicalReduction>1</mechanicalReduction>
+            </actuator>
+        </transmission>
+
+    </xacro:macro>
+
+    <!-- ========================== Generate URDF ========================== -->
+
+    <!-- <link name="world"/>
+        <joint name="fixed_joint" type="fixed">
+            <origin xyz="0 0 0.3" rpy="0 0 0"/>
+            <parent link="world"/>
+            <child link="dummy_link"/>
+        </joint> -->
+
+    <!-- Dummy Link and Joint avoids "KDL does not support a root link with an inertia" error -->
+    <link name="dummy_link"/>
+
+    <xacro:base/>
+
+    <joint name="dummy_joint" type="fixed">
+        <parent link="dummy_link"/>
+        <child link="${robot_name}/base_link"/>
+    </joint>
+
+    <xacro:leg prefix="L1"
+        x="${base_radius*cos(L1_angle)}" y="${base_radius*sin(L1_angle)}" z="0.01"
+        pitch="${-pi/2}" roll="0" yaw="0.5"
+    />
+    <xacro:leg prefix="R1"
+        x="${base_radius*cos(R1_angle)}" y="${base_radius*sin(R1_angle)}" z="0.01"
+        pitch="${-pi/2}" roll="0" yaw="-0.5"
+    />
+    <xacro:leg prefix="L2"
+        x="${base_radius*cos(L2_angle)}" y="${base_radius*sin(L2_angle)}" z="0.01"
+        pitch="${-pi/2}" roll="0" yaw="${pi/2}"
+    />
+    <xacro:leg prefix="R2"
+        x="${base_radius*cos(R2_angle)}" y="${base_radius*sin(R2_angle)}" z="0.01"
+        pitch="${-pi/2}" roll="0" yaw="${-pi/2}"
+    />
+    <xacro:leg prefix="L3"
+        x="${base_radius*cos(L3_angle)}" y="${base_radius*sin(L3_angle)}" z="0.01"
+        pitch="${-pi/2}" roll="0" yaw="${pi-0.5}"
+    />
+    <xacro:leg prefix="R3"
+        x="${base_radius*cos(R3_angle)}" y="${base_radius*sin(R3_angle)}" z="0.01"
+        pitch="${-pi/2}" roll="0" yaw="${-(pi-0.5)}"
+    />
+
+    <!-- ============================= Gazebo ============================= -->
+
+    <gazebo>
+        <!-- IMU, not used yet -->
+        <!-- <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
+            <alwaysOn>true</alwaysOn>
+            <bodyName>body</bodyName>
+            <topicName>imu</topicName>
+            <serviceName>imu_service</serviceName>
+            <gaussianNoise>0.0</gaussianNoise>
+            <updateRate>40.0</updateRate>
+        </plugin> -->
+        <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+            <robotNamespace>/hexapod</robotNamespace>
+        </plugin>
+    </gazebo>
+
+</robot>
