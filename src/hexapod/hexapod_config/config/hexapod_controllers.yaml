@@ -3,80 +3,80 @@ hexapod:
     type: joint_state_controller/JointStateController
     publish_rate: 50
   leg_L1:
-    hip1_joint_position_controller:
+    hip_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_hip1_L1
-      pid: {p: 200.0, i: 1.0, d: 10.0}
-    hip2_joint_position_controller:
-      type: effort_controllers/JointPositionController
-      joint: joint_hip2_L1
+      joint: L1_hip_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
     knee_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_knee_L1
+      joint: L1_knee_joint
+      pid: {p: 200.0, i: 1.0, d: 10.0}
+    ankle_joint_position_controller:
+      type: effort_controllers/JointPositionController
+      joint: L1_ankle_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
   leg_R1:
-    hip1_joint_position_controller:
+    hip_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_hip1_R1
-      pid: {p: 200.0, i: 1.0, d: 10.0}
-    hip2_joint_position_controller:
-      type: effort_controllers/JointPositionController
-      joint: joint_hip2_R1
+      joint: R1_hip_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
     knee_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_knee_R1
+      joint: R1_knee_joint
+      pid: {p: 200.0, i: 1.0, d: 10.0}
+    ankle_joint_position_controller:
+      type: effort_controllers/JointPositionController
+      joint: R1_ankle_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
   leg_L2:
-    hip1_joint_position_controller:
+    hip_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_hip1_L2
-      pid: {p: 200.0, i: 1.0, d: 10.0}
-    hip2_joint_position_controller:
-      type: effort_controllers/JointPositionController
-      joint: joint_hip2_L2
+      joint: L2_hip_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
     knee_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_knee_L2
+      joint: L2_knee_joint
+      pid: {p: 200.0, i: 1.0, d: 10.0}
+    ankle_joint_position_controller:
+      type: effort_controllers/JointPositionController
+      joint: L2_ankle_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
   leg_R2:
-    hip1_joint_position_controller:
+    hip_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_hip1_R2
-      pid: {p: 200.0, i: 1.0, d: 10.0}
-    hip2_joint_position_controller:
-      type: effort_controllers/JointPositionController
-      joint: joint_hip2_R2
+      joint: R2_hip_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
     knee_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_knee_R2
+      joint: R2_knee_joint
+      pid: {p: 200.0, i: 1.0, d: 10.0}
+    ankle_joint_position_controller:
+      type: effort_controllers/JointPositionController
+      joint: R2_ankle_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
   leg_L3:
-    hip1_joint_position_controller:
+    hip_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_hip1_L3
-      pid: {p: 200.0, i: 1.0, d: 10.0}
-    hip2_joint_position_controller:
-      type: effort_controllers/JointPositionController
-      joint: joint_hip2_L3
+      joint: L3_hip_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
     knee_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_knee_L3
+      joint: L3_knee_joint
+      pid: {p: 200.0, i: 1.0, d: 10.0}
+    ankle_joint_position_controller:
+      type: effort_controllers/JointPositionController
+      joint: L3_ankle_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
   leg_R3:
-    hip1_joint_position_controller:
+    hip_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_hip1_R3
-      pid: {p: 200.0, i: 1.0, d: 10.0}
-    hip2_joint_position_controller:
-      type: effort_controllers/JointPositionController
-      joint: joint_hip2_R3
+      joint: R3_hip_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
     knee_joint_position_controller:
       type: effort_controllers/JointPositionController
-      joint: joint_knee_R3
+      joint: R3_knee_joint
+      pid: {p: 200.0, i: 1.0, d: 10.0}
+    ankle_joint_position_controller:
+      type: effort_controllers/JointPositionController
+      joint: R3_ankle_joint
       pid: {p: 200.0, i: 1.0, d: 10.0}
