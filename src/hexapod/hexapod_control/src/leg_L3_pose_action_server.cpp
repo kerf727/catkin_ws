@@ -57,9 +57,9 @@ public:
         this->targetx = goal->goal.x;
         this->targety = goal->goal.y;
         this->targetz = goal->goal.z;
-        this->hip1Target = ikMsg.response.solution[0];
-        this->hip2Target = ikMsg.response.solution[1];
-        this->kneeTarget = ikMsg.response.solution[2];
+        this->hipTarget = ikMsg.response.solution[0];
+        this->kneeTarget = ikMsg.response.solution[1];
+        this->ankleTarget = ikMsg.response.solution[2];
         this->eps = goal->eps;
         this->actionFeedback.target = goal->goal;
 
@@ -159,10 +159,10 @@ public:
 
     double calculateJointError()
     {
-        double hip1Error = this->hip1Target - currentState.position[0];
-        double hip2Error = this->hip2Target - currentState.position[1];
-        double kneeError = this->kneeTarget - currentState.position[2];
-        return sqrt(pow(hip1Error, 2) + pow(hip2Error, 2) + pow(kneeError, 2));
+        double hipError = this->hipTarget - currentState.position[0];
+        double kneeError = this->kneeTarget - currentState.position[1];
+        double ankleError = this->ankleTarget - currentState.position[2];
+        return sqrt(pow(hipError, 2) + pow(kneeError, 2) + pow(ankleError, 2));
     }
 
     double calculateTaskError(hexapod_control::SolveFKPoseResponse fkResponse)
@@ -188,31 +188,31 @@ public:
     void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
     {
         this->temp = *msg.get();
-        int hip1Index, hip2Index, kneeIndex;
+        int hipIndex, kneeIndex, ankleIndex;
         for (int i = 0; i < temp.name.size(); ++i)
         {
             std::string name_i = temp.name[i];
             if (name_i.find("L3") != std::string::npos)
             {
-                if (name_i.find("hip1") != std::string::npos)
+                if (name_i.find("hip") != std::string::npos)
                 {
-                    hip1Index = i;
-                }
-                else if (name_i.find("hip2") != std::string::npos)
-                {
-                    hip2Index = i;
+                    hipIndex = i;
                 }
                 else if (name_i.find("knee") != std::string::npos)
                 {
                     kneeIndex = i;
                 }
+                else if (name_i.find("ankle") != std::string::npos)
+                {
+                    ankleIndex = i;
+                }
             }
         }
 
-        this->currentState.name = {temp.name[hip1Index], temp.name[hip2Index], temp.name[kneeIndex]};
-        this->currentState.position = {temp.position[hip1Index], temp.position[hip2Index], temp.position[kneeIndex]};
-        this->currentState.velocity = {temp.velocity[hip1Index], temp.velocity[hip2Index], temp.velocity[kneeIndex]};
-        this->currentState.effort = {temp.effort[hip1Index], temp.effort[hip2Index], temp.effort[kneeIndex]};
+        this->currentState.name = {temp.name[hipIndex], temp.name[kneeIndex], temp.name[ankleIndex]};
+        this->currentState.position = {temp.position[hipIndex], temp.position[kneeIndex], temp.position[ankleIndex]};
+        this->currentState.velocity = {temp.velocity[hipIndex], temp.velocity[kneeIndex], temp.velocity[ankleIndex]};
+        this->currentState.effort = {temp.effort[hipIndex], temp.effort[kneeIndex], temp.effort[ankleIndex]};
     }
 
 private:
@@ -227,9 +227,9 @@ private:
     ros::Subscriber jointStateSubscriber;
     sensor_msgs::JointState currentState;
     sensor_msgs::JointState temp;
-    double hip1Target;
-    double hip2Target;
+    double hipTarget;
     double kneeTarget;
+    double ankleTarget;
     double targetx;
     double targety;
     double targetz;

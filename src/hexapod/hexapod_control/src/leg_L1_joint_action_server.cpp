@@ -19,9 +19,9 @@ public:
         this->jointStateSubscriber = node.subscribe("/hexapod/joint_states", 10, &SetJointAction::jointStatesCB, this);
 
         ROS_INFO("Publishing to Joint Controllers");
-        this->hip1JointPublisher = node.advertise<std_msgs::Float64>("/hexapod/leg_L1/hip1_joint_position_controller/command", 1);
-        this->hip2JointPublisher = node.advertise<std_msgs::Float64>("/hexapod/leg_L1/hip2_joint_position_controller/command", 1);
+        this->hipJointPublisher = node.advertise<std_msgs::Float64>("/hexapod/leg_L1/hip_joint_position_controller/command", 1);
         this->kneeJointPublisher = node.advertise<std_msgs::Float64>("/hexapod/leg_L1/knee_joint_position_controller/command", 1);
+        this->ankleJointPublisher = node.advertise<std_msgs::Float64>("/hexapod/leg_L1/ankle_joint_position_controller/command", 1);
 
         ROS_INFO("Subscribing to FKPoseSolver service...");
         this->fkClient = node.serviceClient<hexapod_control::SolveFKPose>("/hexapod/leg_L1/fk");
@@ -38,19 +38,19 @@ public:
     void executeCB(const hexapod_control::SetJointGoalConstPtr& goal)
     {
         // Set goal
-        this->hip1Target = goal->goal[0];
-        this->hip2Target = goal->goal[1];
-        this->kneeTarget = goal->goal[2];
+        this->hipTarget = goal->goal[0];
+        this->kneeTarget = goal->goal[1];
+        this->ankleTarget = goal->goal[2];
         this->eps = goal->eps;
 
         // Command joints
-        std_msgs::Float64 hip1JointCommand, hip2JointCommand, kneeJointCommand;
-        hip1JointCommand.data = this->hip1Target;
-        hip2JointCommand.data = this->hip2Target;
+        std_msgs::Float64 hipJointCommand, kneeJointCommand, ankleJointCommand;
+        hipJointCommand.data = this->hipTarget;
         kneeJointCommand.data = this->kneeTarget;
-        hip1JointPublisher.publish(hip1JointCommand);
-        hip2JointPublisher.publish(hip2JointCommand);
+        ankleJointCommand.data = this->ankleTarget;
+        hipJointPublisher.publish(hipJointCommand);
         kneeJointPublisher.publish(kneeJointCommand);
+        ankleJointPublisher.publish(ankleJointCommand);
         this->actionFeedback.targets = goal->goal;
 
         // Get current time
@@ -120,10 +120,10 @@ public:
 
     double calculateJointError()
     {
-        double hip1Error = this->hip1Target - currentState.position[0];
-        double hip2Error = this->hip2Target - currentState.position[1];
-        double kneeError = this->kneeTarget - currentState.position[2];
-        return sqrt(pow(hip1Error, 2) + pow(hip2Error, 2) + pow(kneeError, 2));
+        double hipError = this->hipTarget - currentState.position[0];
+        double kneeError = this->kneeTarget - currentState.position[1];
+        double ankleError = this->ankleTarget - currentState.position[2];
+        return sqrt(pow(hipError, 2) + pow(kneeError, 2) + pow(ankleError, 2));
     }
 
     bool isRobotIdle()
@@ -141,31 +141,31 @@ public:
     void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
     {
         this->temp = *msg.get();
-        int hip1Index, hip2Index, kneeIndex;
+        int hipIndex, kneeIndex, ankleIndex;
         for (int i = 0; i < temp.name.size(); ++i)
         {
             std::string name_i = temp.name[i];
             if (name_i.find("L1") != std::string::npos)
             {
-                if (name_i.find("hip1") != std::string::npos)
+                if (name_i.find("hip") != std::string::npos)
                 {
-                    hip1Index = i;
-                }
-                else if (name_i.find("hip2") != std::string::npos)
-                {
-                    hip2Index = i;
+                    hipIndex = i;
                 }
                 else if (name_i.find("knee") != std::string::npos)
                 {
                     kneeIndex = i;
                 }
+                else if (name_i.find("ankle") != std::string::npos)
+                {
+                    ankleIndex = i;
+                }
             }
         }
 
-        this->currentState.name     = {temp.name[hip1Index],     temp.name[hip2Index],     temp.name[kneeIndex]};
-        this->currentState.position = {temp.position[hip1Index], temp.position[hip2Index], temp.position[kneeIndex]};
-        this->currentState.velocity = {temp.velocity[hip1Index], temp.velocity[hip2Index], temp.velocity[kneeIndex]};
-        this->currentState.effort   = {temp.effort[hip1Index],   temp.effort[hip2Index],   temp.effort[kneeIndex]};
+        this->currentState.name     = {temp.name[hipIndex],     temp.name[kneeIndex],     temp.name[ankleIndex]};
+        this->currentState.position = {temp.position[hipIndex], temp.position[kneeIndex], temp.position[ankleIndex]};
+        this->currentState.velocity = {temp.velocity[hipIndex], temp.velocity[kneeIndex], temp.velocity[ankleIndex]};
+        this->currentState.effort   = {temp.effort[hipIndex],   temp.effort[kneeIndex],   temp.effort[ankleIndex]};
     }
 
 private:
@@ -176,14 +176,14 @@ private:
     hexapod_control::SetJointResult actionResult;
     ros::ServiceClient fkClient;
     ros::Subscriber jointStateSubscriber;
-    ros::Publisher hip1JointPublisher;
-    ros::Publisher hip2JointPublisher;
+    ros::Publisher hipJointPublisher;
     ros::Publisher kneeJointPublisher;
+    ros::Publisher ankleJointPublisher;
     sensor_msgs::JointState currentState;
     sensor_msgs::JointState temp;
-    double hip1Target;
-    double hip2Target;
+    double hipTarget;
     double kneeTarget;
+    double ankleTarget;
     double eps;
 };
 
