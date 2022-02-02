@@ -7,6 +7,7 @@
 #include "std_msgs/Bool.h"
 #include "geometry_msgs/Pose.h"
 #include "gazebo_msgs/GetLinkState.h"
+#include "geometry_msgs/Twist.h"
 #include "math.h"
 
 class SetTrajectoryAction
@@ -22,11 +23,14 @@ public:
         ROS_INFO("Waiting for Pose State Server...");
         this->client.waitForServer(ros::Duration(30));
 
-		// ROS_INFO("Subscribing to Gait Controller...");
+		ROS_INFO("Subscribing to Gait Controller...");
 		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
 		this->bodyVelocitySubscriber = node.subscribe("/hexapod/gait/body_velocity", 10, &SetTrajectoryAction::bodyVelocityCB, this);
 
-        ROS_INFO("Subscribing to Gazebo GetLinkState service");
+        ROS_INFO("Subscribing to Teleop...");
+        this->teleopSubscriber = node.subscribe("/hexapod/teleop", 10, &SetTrajectoryAction::teleopCB, this);
+
+        ROS_INFO("Subscribing to Gazebo GetLinkState service...");
         this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
         this->stopCommandSubscriber = node.subscribe("/hexapod/gait/stop", 10, &SetTrajectoryAction::stopCommandCB, this);
 		
@@ -78,16 +82,42 @@ public:
                 initialized = true;
             }
 
+            // Update mode and twist from teleop
+            bool mode;
+            mode = 0;
+
             // Calculate the target position
             geometry_msgs::Point position;
-            if (!initialized)
+
+            if (mode == 0) // Stationary
             {
-                position = InitialTrajectory(elapsed);
+                // Keyboard inputs affect base position/orientation, feet maintain position
+                // Calculate leg hip position
+
+                // Position
+                position.x = -twist.linear.x;
+                position.y = -twist.linear.y;
+                position.z = -twist.linear.z;
+
+                // Orientation
             }
-            else
+            else if (mode == 1) // Moving (walking and rotating)
             {
-                position = RotateInPlace(currentPhase);
+                // Keyboard inputs affect direction of walking
+                // just L or R -> rotate in place
+                // L or R and U or D -> move while rotating
+                // Maintain position/orientation set in mode 0 while moving
+                // position = ;
             }
+
+            // if (!initialized)
+            // {
+            //     position = InitialTrajectory(elapsed);
+            // }
+            // else
+            // {
+            //     position = RotateInPlace(currentPhase);
+            // }
 
             if ((stop || preempted) && stage.compare("Support Phase") == 0)
             {
@@ -163,6 +193,16 @@ public:
 		this->bodyVelocity = msg->data;
 	}
 
+    void teleopCB(const geometry_msgs::TwistConstPtr& msg)
+	{
+		this->twist.linear.x = msg->linear.x;
+        this->twist.linear.y = msg->linear.y;
+        this->twist.linear.z = msg->linear.z;
+        this->twist.angular.x = msg->angular.x;
+        this->twist.angular.y = msg->angular.y;
+        this->twist.angular.z = msg->angular.z;
+	}
+
     void stopCommandCB(const std_msgs::BoolConstPtr& msg)
 	{
 		this->stop = msg->data;
@@ -178,6 +218,7 @@ private:
 	hexapod_control::GaitResult actionResult;
 	ros::Subscriber dutyFactorSubscriber;
 	ros::Subscriber bodyVelocitySubscriber;
+    ros::Subscriber teleopSubscriber;
     ros::Subscriber stopCommandSubscriber;
 	hexapod_control::Pose currentPose;
 	double initialPhase;
@@ -186,6 +227,7 @@ private:
 	double strideHeight;
 	double dutyFactor;
 	double bodyVelocity;
+    geometry_msgs::Twist twist;
     double xOffset = -0.08232;
     double yOffset = 0.1426;
     double zOffset = -0.03928;
