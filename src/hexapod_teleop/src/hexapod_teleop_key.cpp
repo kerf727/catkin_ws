@@ -85,39 +85,59 @@ void TeleopHexapod::keyLoop()
             exit(-1);
         }
 
-        pos_x = rot_x = 0;
-        pos_y = rot_y = 0;
-        pos_z = rot_z = 0;
+        pos_x = rot_x = 0.0;
+        pos_y = rot_y = 0.0;
+        pos_z = rot_z = 0.0;
         ROS_DEBUG("value: 0x%02X\n", c);
 
         switch(c)
         {
             case KEYCODE_L:
                 ROS_DEBUG("LEFT");
-                pos_x = -0.2;
+                pos_x = -0.005;
+                pos_y =  0.0;
+                pos_z =  0.0;
+                rot_x =  0.0;
+                rot_y =  0.0;   
+                rot_z =  0.0;
                 dirty = true;
                 break;
             case KEYCODE_R:
                 ROS_DEBUG("RIGHT");
-                pos_x = 0.2;
+                pos_x =  0.005;
+                pos_y =  0.0;
+                pos_z =  0.0;
+                rot_x =  0.0;
+                rot_y =  0.0;
+                rot_z =  0.0;
                 dirty = true;
                 break;
             case KEYCODE_U:
                 ROS_DEBUG("UP");
-                pos_y = 0.2;
+                pos_x =  0.0;
+                pos_y =  0.005;
+                pos_z =  0.0;
+                rot_x =  0.0;
+                rot_y =  0.0;
+                rot_z =  0.0;
                 dirty = true;
                 break;
             case KEYCODE_D:
                 ROS_DEBUG("DOWN");
-                pos_y = -0.2;
+                pos_x =  0.0;
+                pos_y = -0.005;
+                pos_z =  0.0;
+                rot_x =  0.0;
+                rot_y =  0.0;
+                rot_z =  0.0;
                 dirty = true;
                 break;
         }
 
         geometry_msgs::Twist twist;
         twist.linear.x  = pos_scale*pos_x;
-        twist.linear.y  = pos_scale*pos_x;
-        twist.linear.z  = pos_scale*pos_x;
+        twist.linear.y  = pos_scale*pos_y;
+        twist.linear.z  = pos_scale*pos_z;
         twist.angular.x = rot_scale*rot_x;
         twist.angular.y = rot_scale*rot_y;
         twist.angular.z = rot_scale*rot_z;
