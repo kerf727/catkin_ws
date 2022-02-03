@@ -23,15 +23,10 @@ public:
         ROS_INFO("Waiting for Pose State Server...");
         this->client.waitForServer(ros::Duration(30));
 
-		ROS_INFO("Subscribing to Gait Controller...");
-		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
-		this->bodyVelocitySubscriber = node.subscribe("/hexapod/gait/body_velocity", 10, &SetTrajectoryAction::bodyVelocityCB, this);
-
         ROS_INFO("Subscribing to Teleop...");
         this->teleopSubscriber = node.subscribe("/hexapod/teleop", 10, &SetTrajectoryAction::teleopCB, this);
 
         ROS_INFO("Subscribing to Gazebo GetLinkState service...");
-        this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
         this->stopCommandSubscriber = node.subscribe("/hexapod/gait/stop", 10, &SetTrajectoryAction::stopCommandCB, this);
 		
 		ROS_INFO("Starting...");
@@ -43,23 +38,19 @@ public:
 		this->node.shutdown();
 	}
 
-	void executeCB(const hexapod_control::GaitGoalConstPtr &goal)
+	void executeCB(const hexapod_control::GaitGoalConstPtr& goal)
 	{
 		double start = ros::Time::now().toSec();
 
-		this->initialPhase = goal->initialPhase;
-		this->strideTime = goal->strideTime;
-		this->strideHeight = goal->strideHeight;
+        int mode;
+        mode = 0;
+
 		double eps = 0.05;
-		
-		int state = 0;
         bool preempted = false;
         stop = false;
         initialized = false;
 
-		double t, elapsed;
-		steps = 0;
-		currentPhase = this->initialPhase;
+		double elapsed;
 		hexapod_control::Pose targetPose;
 
 		ros::Rate rate(50);
@@ -73,18 +64,6 @@ public:
             }
 
             elapsed = ros::Time::now().toSec() - start;
-			t = elapsed + this->initialPhase * strideTime; // account for initialPhase
-
-            // Calculate the current phase
-			currentPhase = fmod(t / this->strideTime, 1.0);
-            if (!initialized && currentPhase >= dutyFactor)
-            {
-                initialized = true;
-            }
-
-            // Update mode and twist from teleop
-            bool mode;
-            mode = 0;
 
             // Calculate the target position
             geometry_msgs::Point position;
@@ -95,9 +74,9 @@ public:
                 // Calculate leg hip position
 
                 // Position
-                position.x = -twist.linear.x;
-                position.y = -twist.linear.y;
-                position.z = -twist.linear.z;
+                position.x = xOffset - twist.linear.x;
+                position.y = yOffset - twist.linear.y;
+                position.z = zOffset - twist.linear.z;
 
                 // Orientation
             }
@@ -110,16 +89,7 @@ public:
                 // position = ;
             }
 
-            // if (!initialized)
-            // {
-            //     position = InitialTrajectory(elapsed);
-            // }
-            // else
-            // {
-            //     position = RotateInPlace(currentPhase);
-            // }
-
-            if ((stop || preempted) && stage.compare("Support Phase") == 0)
+            if (stop || preempted)
             {
                 break;
             }
@@ -141,35 +111,13 @@ public:
 				boost::bind(&SetTrajectoryAction::activeCB, this),
 				boost::bind(&SetTrajectoryAction::publishFeedback, this, _1));
 
-			this->actionFeedback.currentPhase = currentPhase;
-			this->actionFeedback.targetPose = targetPose;
-			this->actionFeedback.currentPose = currentPose;
-            this->actionFeedback.stage = stage;
-			server.publishFeedback(this->actionFeedback);
-
-            if (currentPhase == initialPhase)
-            {
-                steps++;
-            }
-
 			rate.sleep();
 		}
-
-		// Publish result
-        this->actionResult.stepsTaken = steps;
-        if (preempted)
-        {
-            server.setPreempted(this->actionResult);
-        }
-        else
-        {
-		    server.setSucceeded(this->actionResult);
-        }
 	}
 
 	void publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback)
 	{
-		currentPose = poseFeedback->currentPose;
+		
 	}
 
 	void publishResult(const actionlib::SimpleClientGoalState& state,
@@ -183,24 +131,14 @@ public:
 
 	}
 
-	void dutyFactorCB(const std_msgs::Float64ConstPtr& msg)
+    void teleopCB(const geometry_msgs::TwistConstPtr& data)
 	{
-		this->dutyFactor = msg->data;
-	}
-
-	void bodyVelocityCB(const std_msgs::Float64ConstPtr& msg)
-	{
-		this->bodyVelocity = msg->data;
-	}
-
-    void teleopCB(const geometry_msgs::TwistConstPtr& msg)
-	{
-		this->twist.linear.x = msg->linear.x;
-        this->twist.linear.y = msg->linear.y;
-        this->twist.linear.z = msg->linear.z;
-        this->twist.angular.x = msg->angular.x;
-        this->twist.angular.y = msg->angular.y;
-        this->twist.angular.z = msg->angular.z;
+		this->twist.linear.x  = data->linear.x;
+        this->twist.linear.y  = data->linear.y;
+        this->twist.linear.z  = data->linear.z;
+        this->twist.angular.x = data->angular.x;
+        this->twist.angular.y = data->angular.y;
+        this->twist.angular.z = data->angular.z;
 	}
 
     void stopCommandCB(const std_msgs::BoolConstPtr& msg)
@@ -213,115 +151,14 @@ private:
 	ros::NodeHandle node;
 	actionlib::SimpleActionServer<hexapod_control::GaitAction> server;
 	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client;
-    ros::ServiceClient linkStateClient;
-	hexapod_control::GaitFeedback actionFeedback;
-	hexapod_control::GaitResult actionResult;
-	ros::Subscriber dutyFactorSubscriber;
-	ros::Subscriber bodyVelocitySubscriber;
     ros::Subscriber teleopSubscriber;
     ros::Subscriber stopCommandSubscriber;
-	hexapod_control::Pose currentPose;
-	double initialPhase;
-	double currentPhase;
-	double strideTime;
-	double strideHeight;
-	double dutyFactor;
-	double bodyVelocity;
     geometry_msgs::Twist twist;
     double xOffset = -0.08232;
     double yOffset = 0.1426;
     double zOffset = -0.03928;
-    int steps = 0;
     bool stop = false;
     bool initialized = false;
-    std::string stage;
-
-    geometry_msgs::Point InitialTrajectory(double elapsed)
-    {
-        // Position w.r.t. body
-        geometry_msgs::Point position;
-        double x, y, z;
-
-        // Just move forward until reach initial phase
-        x = xOffset - bodyVelocity * elapsed;
-        y = yOffset;
-        z = zOffset;
-        stage = "Initialization";
-
-        position.x = x;
-        position.y = y;
-        position.z = z;
-
-        return position;
-    }
-
-    geometry_msgs::Point SineTrajectory(double phase)
-    {
-        // Position w.r.t. body
-        geometry_msgs::Point position;
-        double x, y, z;
-
-        double strideLength = strideTime * bodyVelocity;
-
-        // Support phase
-        if (phase < dutyFactor)
-        {
-            double supportPhase = phase / dutyFactor;
-            x = xOffset;
-            y = yOffset + (strideLength / 2 - strideLength * supportPhase);
-            z = zOffset;
-            stage = "Support Phase";
-        }
-        // Transfer phase
-        else
-        {
-            double transferPhase = (phase - dutyFactor) / (1.0 - dutyFactor);
-            x = xOffset;
-            y = yOffset + (strideLength * transferPhase - strideLength / 2);
-            z = 0.5 * strideHeight * cos(2 * M_PI * transferPhase - M_PI) + zOffset + strideHeight/2;
-            stage = "Transfer Phase";
-        }
-        
-        position.x = x;
-        position.y = y;
-        position.z = z;
-
-        return position;
-    }
-
-    geometry_msgs::Point RotateInPlace(double phase)
-    {
-        // Position w.r.t. body
-        geometry_msgs::Point position;
-        double x, y, z;
-
-        double strideLength = strideTime * bodyVelocity;
-
-        // Support phase
-        if (phase < dutyFactor)
-        {
-            double supportPhase = phase / dutyFactor;
-            x = xOffset + cos(30 * M_PI / 180) * (strideLength / 2 - strideLength * supportPhase);
-            y = yOffset - sin(30 * M_PI / 180) * (strideLength / 2 - strideLength * supportPhase);
-            z = zOffset;
-            stage = "Support Phase";
-        }
-        // Transfer phase
-        else
-        {
-            double transferPhase = (phase - dutyFactor) / (1.0 - dutyFactor);
-            x = xOffset + cos(30 * M_PI / 180) * (strideLength * transferPhase - strideLength / 2);
-            y = yOffset - sin(30 * M_PI / 180) * (strideLength * transferPhase - strideLength / 2);
-            z = 0.5 * strideHeight * cos(2 * M_PI * transferPhase - M_PI) + zOffset + strideHeight/2;
-            stage = "Transfer Phase";
-        }
-        
-        position.x = x;
-        position.y = y;
-        position.z = z;
-
-        return position;
-    }
 };
 
 int main(int argc, char **argv)
