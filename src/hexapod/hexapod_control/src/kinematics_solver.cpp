@@ -17,12 +17,12 @@ namespace hexapod_control
             this->node = node;
 
             KDL::Chain chain;
-            tree.getChain("body", "L1_foot_link", this->leg_L1);
-            tree.getChain("body", "R1_foot_link", this->leg_R1);
-            tree.getChain("body", "L2_foot_link", this->leg_L2);
-            tree.getChain("body", "R2_foot_link", this->leg_R2);
-            tree.getChain("body", "L3_foot_link", this->leg_L3);
-            tree.getChain("body", "R3_foot_link", this->leg_R3);
+            tree.getChain("hexapod/base_link", "hexapod/L1_foot_link", this->leg_L1);
+            tree.getChain("hexapod/base_link", "hexapod/R1_foot_link", this->leg_R1);
+            tree.getChain("hexapod/base_link", "hexapod/L2_foot_link", this->leg_L2);
+            tree.getChain("hexapod/base_link", "hexapod/R2_foot_link", this->leg_R2);
+            tree.getChain("hexapod/base_link", "hexapod/L3_foot_link", this->leg_L3);
+            tree.getChain("hexapod/base_link", "hexapod/R3_foot_link", this->leg_R3);
 
             ROS_INFO("Initializing IKPoseSolver service...");
             this->ikL1PoseService = node->advertiseService("/hexapod/leg_L1/ik", &KinematicsSolver::solveIKPoseLegL1, this);
