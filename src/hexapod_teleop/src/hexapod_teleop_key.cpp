@@ -25,6 +25,8 @@ private:
     ros::Publisher twistPublisher;
     double pos_x, rot_x, pos_y, rot_y, pos_z, rot_z, pos_scale, rot_scale;
     int mode;
+    double trans = 0.1;
+    double rot_deg = 15;
 };
 
 TeleopHexapod::TeleopHexapod():
@@ -102,14 +104,14 @@ void TeleopHexapod::keyLoop()
                 ROS_INFO("LEFT");
                 if (mode == 0) // Position
                 {
-                    pos_x = -0.01;
+                    pos_x = -trans;
                     pos_y =  0.0;
                     pos_z =  0.0;
                 }
                 else if (mode == 1) // Orientation
                 {
                     rot_x =  0.0;
-                    rot_y =  -30*M_PI/180;
+                    rot_y =  -rot_deg*M_PI/180;
                     rot_z =  0.0;
                 }
                 dirty = true;
@@ -118,14 +120,14 @@ void TeleopHexapod::keyLoop()
                 ROS_INFO("RIGHT");
                 if (mode == 0) // Position
                 {
-                    pos_x =  0.01;
+                    pos_x =  trans;
                     pos_y =  0.0;
                     pos_z =  0.0;
                 }
                 else if (mode == 1) // Orientation
                 {
                     rot_x =  0.0;
-                    rot_y =  30*M_PI/180;
+                    rot_y =  rot_deg*M_PI/180;
                     rot_z =  0.0;
                 }
                 dirty = true;
@@ -135,12 +137,12 @@ void TeleopHexapod::keyLoop()
                 if (mode == 0) // Position
                 {
                     pos_x =  0.0;
-                    pos_y =  0.01;
+                    pos_y =  trans;
                     pos_z =  0.0;
                 }
                 else if (mode == 1) // Orientation
                 {
-                    rot_x =  -30*M_PI/180;
+                    rot_x =  -rot_deg*M_PI/180;
                     rot_y =  0.0;
                     rot_z =  0.0;
                 }
@@ -151,12 +153,12 @@ void TeleopHexapod::keyLoop()
                 if (mode == 0) // Position
                 {
                     pos_x =  0.0;
-                    pos_y = -0.01;
+                    pos_y = -trans;
                     pos_z =  0.0;
                 }
                 else if (mode == 1) // Orientation
                 {
-                    rot_x =  30*M_PI/180;
+                    rot_x =  rot_deg*M_PI/180;
                     rot_y =  0.0;
                     rot_z =  0.0;
                 }
