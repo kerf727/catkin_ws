@@ -209,10 +209,10 @@ public:
             }
         }
 
-        this->currentState.name = {temp.name[hipIndex], temp.name[kneeIndex], temp.name[ankleIndex]};
+        this->currentState.name     = {temp.name[hipIndex],     temp.name[kneeIndex],     temp.name[ankleIndex]};
         this->currentState.position = {temp.position[hipIndex], temp.position[kneeIndex], temp.position[ankleIndex]};
         this->currentState.velocity = {temp.velocity[hipIndex], temp.velocity[kneeIndex], temp.velocity[ankleIndex]};
-        this->currentState.effort = {temp.effort[hipIndex], temp.effort[kneeIndex], temp.effort[ankleIndex]};
+        this->currentState.effort   = {temp.effort[hipIndex],   temp.effort[kneeIndex],   temp.effort[ankleIndex]};
     }
 
 private:
