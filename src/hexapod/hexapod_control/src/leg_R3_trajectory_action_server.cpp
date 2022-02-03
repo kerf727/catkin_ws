@@ -22,7 +22,7 @@ public:
         ROS_INFO("Waiting for Pose State Server...");
         this->client.waitForServer(ros::Duration(30));
 
-		// ROS_INFO("Subscribing to Gait Controller...");
+		ROS_INFO("Subscribing to Gait Controller...");
 		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
 		this->bodyVelocitySubscriber = node.subscribe("/hexapod/gait/body_velocity", 10, &SetTrajectoryAction::bodyVelocityCB, this);
 
