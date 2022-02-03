@@ -4,11 +4,15 @@
 #include <termios.h>
 #include <stdio.h>
 
-#define KEYCODE_R 0x43 
-#define KEYCODE_L 0x44
-#define KEYCODE_U 0x41
-#define KEYCODE_D 0x42
+#define KEYCODE_Rarrow 0x43 
+#define KEYCODE_Larrow 0x44
+#define KEYCODE_Uarrow 0x41
+#define KEYCODE_Darrow 0x42
 #define KEYCODE_Q 0x71
+// #define KEYCODE_R 0x64
+// #define KEYCODE_L 0x61
+// #define KEYCODE_U 0x77
+// #define KEYCODE_D 0x73
 
 class TeleopHexapod
 {
@@ -20,17 +24,19 @@ private:
     ros::NodeHandle node;
     ros::Publisher twistPublisher;
     double pos_x, rot_x, pos_y, rot_y, pos_z, rot_z, pos_scale, rot_scale;
+    int mode;
 };
 
 TeleopHexapod::TeleopHexapod():
-    pos_x(0),
-    rot_x(0),
-    pos_y(0),
-    rot_y(0),
-    pos_z(0),
-    rot_z(0),
+    pos_x(0.0),
+    rot_x(0.0),
+    pos_y(0.0),
+    rot_y(0.0),
+    pos_z(0.0),
+    rot_z(0.0),
     pos_scale(1.0),
-    rot_scale(1.0)
+    rot_scale(1.0),
+    mode(0)
 {
     node.param("scale_pos", pos_scale, pos_scale);
     node.param("scale_rot", rot_scale, rot_scale);
@@ -92,44 +98,80 @@ void TeleopHexapod::keyLoop()
 
         switch(c)
         {
-            case KEYCODE_L:
-                ROS_DEBUG("LEFT");
-                pos_x = -0.005;
-                pos_y =  0.0;
-                pos_z =  0.0;
-                rot_x =  0.0;
-                rot_y =  0.0;   
-                rot_z =  0.0;
+            case KEYCODE_Larrow:
+                ROS_INFO("LEFT");
+                if (mode == 0) // Position
+                {
+                    pos_x = -0.01;
+                    pos_y =  0.0;
+                    pos_z =  0.0;
+                }
+                else if (mode == 1) // Orientation
+                {
+                    rot_x =  0.0;
+                    rot_y =  -30*M_PI/180;
+                    rot_z =  0.0;
+                }
                 dirty = true;
                 break;
-            case KEYCODE_R:
-                ROS_DEBUG("RIGHT");
-                pos_x =  0.005;
-                pos_y =  0.0;
-                pos_z =  0.0;
-                rot_x =  0.0;
-                rot_y =  0.0;
-                rot_z =  0.0;
+            case KEYCODE_Rarrow:
+                ROS_INFO("RIGHT");
+                if (mode == 0) // Position
+                {
+                    pos_x =  0.01;
+                    pos_y =  0.0;
+                    pos_z =  0.0;
+                }
+                else if (mode == 1) // Orientation
+                {
+                    rot_x =  0.0;
+                    rot_y =  30*M_PI/180;
+                    rot_z =  0.0;
+                }
                 dirty = true;
                 break;
-            case KEYCODE_U:
-                ROS_DEBUG("UP");
-                pos_x =  0.0;
-                pos_y =  0.005;
-                pos_z =  0.0;
-                rot_x =  0.0;
-                rot_y =  0.0;
-                rot_z =  0.0;
+            case KEYCODE_Uarrow:
+                ROS_INFO("UP");
+                if (mode == 0) // Position
+                {
+                    pos_x =  0.0;
+                    pos_y =  0.01;
+                    pos_z =  0.0;
+                }
+                else if (mode == 1) // Orientation
+                {
+                    rot_x =  -30*M_PI/180;
+                    rot_y =  0.0;
+                    rot_z =  0.0;
+                }
                 dirty = true;
                 break;
-            case KEYCODE_D:
-                ROS_DEBUG("DOWN");
-                pos_x =  0.0;
-                pos_y = -0.005;
-                pos_z =  0.0;
-                rot_x =  0.0;
-                rot_y =  0.0;
-                rot_z =  0.0;
+            case KEYCODE_Darrow:
+                ROS_INFO("DOWN");
+                if (mode == 0) // Position
+                {
+                    pos_x =  0.0;
+                    pos_y = -0.01;
+                    pos_z =  0.0;
+                }
+                else if (mode == 1) // Orientation
+                {
+                    rot_x =  30*M_PI/180;
+                    rot_y =  0.0;
+                    rot_z =  0.0;
+                }
+                dirty = true;
+                break;
+            case KEYCODE_Q:
+                ROS_INFO("Q");
+                if (mode == 0)
+                {
+                    mode = 1;
+                }
+                else if (mode == 1)
+                {
+                    mode = 0;
+                }
                 dirty = true;
                 break;
         }
