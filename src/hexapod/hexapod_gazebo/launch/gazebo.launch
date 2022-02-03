@@ -17,12 +17,12 @@
   <!-- Push robot_description to factory and spawn robot in gazebo at the origin, change x,y,z arguments to spawn in a different position -->
   <node name="spawn_gazebo_model" pkg="gazebo_ros" type="spawn_model"
         args="-urdf -param robot_description -model robot -x 0 -y 0 -z 0.05
-              -J L1_hip_joint 0.0 -J L1_knee_joint 0.5236 -J L1_ankle_joint -1.5708
-              -J R1_hip_joint 0.0 -J R1_knee_joint 0.5236 -J R1_ankle_joint -1.5708
-              -J L2_hip_joint 0.0 -J L2_knee_joint 0.5236 -J L2_ankle_joint -1.5708
-              -J R2_hip_joint 0.0 -J R2_knee_joint 0.5236 -J R2_ankle_joint -1.5708
-              -J L3_hip_joint 0.0 -J L3_knee_joint 0.5236 -J L3_ankle_joint -1.5708
-              -J R3_hip_joint 0.0 -J R3_knee_joint 0.5236 -J R3_ankle_joint -1.5708 "
+              -J L1_hip_joint 0.0 -J L1_knee_joint 0.5236 -J L1_ankle_joint 1.5708
+              -J R1_hip_joint 0.0 -J R1_knee_joint 0.5236 -J R1_ankle_joint 1.5708
+              -J L2_hip_joint 0.0 -J L2_knee_joint 0.5236 -J L2_ankle_joint 1.5708
+              -J R2_hip_joint 0.0 -J R2_knee_joint 0.5236 -J R2_ankle_joint 1.5708
+              -J L3_hip_joint 0.0 -J L3_knee_joint 0.5236 -J L3_ankle_joint 1.5708
+              -J R3_hip_joint 0.0 -J R3_knee_joint 0.5236 -J R3_ankle_joint 1.5708 "
     respawn="false" output="screen" />
 
   <include file="$(find hexapod_config)/launch/hexapod_control.launch"/>
