@@ -1,5 +1,3 @@
-# Placeholder
-
 walking:
   velocity: 0.04
   acceleration: 0.02
