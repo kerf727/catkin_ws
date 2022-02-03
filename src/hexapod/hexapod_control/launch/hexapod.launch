@@ -29,6 +29,15 @@
     <node name="leg_L3_trajectory_action_server" pkg="hexapod_control" type="leg_L3_trajectory_action_server" respawn="false"/>
     <node name="leg_R3_trajectory_action_server" pkg="hexapod_control" type="leg_R3_trajectory_action_server" respawn="false"/>
     
+    <!-- Start up IK action servers -->
+    <rosparam file="$(find hexapod_control)/config/geometry_parameters.yaml" ns="/hexapod/geometry"/>
+    <node name="leg_L1_IK_action_server" pkg="hexapod_control" type="leg_L1_IK_action_server" respawn="false" output="screen"/>
+    <node name="leg_R1_IK_action_server" pkg="hexapod_control" type="leg_R1_IK_action_server" respawn="false" output="screen"/>
+    <node name="leg_L2_IK_action_server" pkg="hexapod_control" type="leg_L2_IK_action_server" respawn="false" output="screen"/>
+    <node name="leg_R2_IK_action_server" pkg="hexapod_control" type="leg_R2_IK_action_server" respawn="false" output="screen"/>
+    <node name="leg_L3_IK_action_server" pkg="hexapod_control" type="leg_L3_IK_action_server" respawn="false" output="screen"/>
+    <node name="leg_R3_IK_action_server" pkg="hexapod_control" type="leg_R3_IK_action_server" respawn="false" output="screen"/>
+
     <!-- Start up gait controller -->
     <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
     <node name="gait_controller" pkg="hexapod_control" type="gait_controller" respawn="false"/>
@@ -36,4 +45,7 @@
     <!-- Start up force sensor and stability stuff -->
     <!-- <node name="force_sensor_node" pkg="hexapod_control" type="force_sensor_node" respawn="true"/>
     <node name="stability_margin_node" pkg="hexapod_control" type="stability_margin_node" respawn="true"/> -->
+
+    <!-- Set to output DEBUG messages -->
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find hexapod_config)/custom_rosconsole.conf"/>
 </launch>

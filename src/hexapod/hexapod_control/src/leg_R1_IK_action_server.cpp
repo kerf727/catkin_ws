@@ -15,7 +15,7 @@ class SetIKAction
 public:
     SetIKAction(std::string name):
         server(node, name, boost::bind(&SetIKAction::executeCB, this, _1), false),
-        client("leg_L1_pose_action", true),
+        client("leg_R1_pose_action", true),
         actionName(name)
     {
         this->node = node;
@@ -50,12 +50,12 @@ public:
 		hexapod_control::Pose targetPose;
         geometry_msgs::Point foot_position, hip_position;
 
-		node.getParam("/hexapod/geometry/leg_L1/foot/x", default_foot_x);
-        node.getParam("/hexapod/geometry/leg_L1/foot/y", default_foot_y);
-        node.getParam("/hexapod/geometry/leg_L1/foot/z", default_foot_z);
-        node.getParam("/hexapod/geometry/leg_L1/hip/x", default_hip_x);
-        node.getParam("/hexapod/geometry/leg_L1/hip/y", default_hip_y);
-        node.getParam("/hexapod/geometry/leg_L1/hip/z", default_hip_z);
+        node.getParam("/hexapod/geometry/leg_R1/foot/x", default_foot_x);
+        node.getParam("/hexapod/geometry/leg_R1/foot/y", default_foot_y);
+        node.getParam("/hexapod/geometry/leg_R1/foot/z", default_foot_z);
+        node.getParam("/hexapod/geometry/leg_R1/hip/x", default_hip_x);
+        node.getParam("/hexapod/geometry/leg_R1/hip/y", default_hip_y);
+        node.getParam("/hexapod/geometry/leg_R1/hip/z", default_hip_z);
 
 		ros::Rate rate(50);
 		while (true)
@@ -159,8 +159,8 @@ private:
         double Rb = 0.08; // base radius
 
         std::vector<std::vector<double>> R = calcRot(twist.angular.x, twist.angular.y, twist.angular.z);
-        std::vector<double> s = {Rb*cos(120*M_PI/180), Rb*sin(120*M_PI/180), 0.0}; // specific to L1
-        std::vector<double> Rs = multRbyS(R, s);
+        std::vector<double> s = {Rb*cos(60*M_PI/180), Rb*sin(60*M_PI/180), 0}; // specific to R1
+        std::vector<double> Rs = multRbyS(R,s);
 
         result.x = twist.linear.x + Rs[0];
         result.y = twist.linear.y + Rs[1];
@@ -197,10 +197,10 @@ private:
 int main(int argc, char **argv)
 {
     ROS_INFO("Starting IK Action Server...");
-    ros::init(argc, argv, "leg_L1_IK_action");
+    ros::init(argc, argv, "leg_R1_IK_action");
     ROS_INFO("Initialized ros...");
 
-    SetIKAction actionServer("leg_L1_IK_action");
+    SetIKAction actionServer("leg_R1_IK_action");
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;
