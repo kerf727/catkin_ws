@@ -4,10 +4,10 @@
 #include <termios.h>
 #include <stdio.h>
 
-#define KEYCODE_Rarrow 0x43 
-#define KEYCODE_Larrow 0x44
-#define KEYCODE_Uarrow 0x41
-#define KEYCODE_Darrow 0x42
+#define KEYCODE_RIGHT 0x43 
+#define KEYCODE_LEFT 0x44
+#define KEYCODE_UP 0x41
+#define KEYCODE_DOWN 0x42
 #define KEYCODE_Q 0x71
 // #define KEYCODE_R 0x64
 // #define KEYCODE_L 0x61
@@ -25,7 +25,7 @@ private:
     ros::Publisher twistPublisher;
     double pos_x, rot_x, pos_y, rot_y, pos_z, rot_z, pos_scale, rot_scale;
     int mode;
-    double trans = 0.1;
+    double trans = 0.02;
     double rot_deg = 15;
 };
 
@@ -100,7 +100,7 @@ void TeleopHexapod::keyLoop()
 
         switch(c)
         {
-            case KEYCODE_Larrow:
+            case KEYCODE_LEFT:
                 ROS_INFO("LEFT");
                 if (mode == 0) // Position
                 {
@@ -116,7 +116,7 @@ void TeleopHexapod::keyLoop()
                 }
                 dirty = true;
                 break;
-            case KEYCODE_Rarrow:
+            case KEYCODE_RIGHT:
                 ROS_INFO("RIGHT");
                 if (mode == 0) // Position
                 {
@@ -132,7 +132,7 @@ void TeleopHexapod::keyLoop()
                 }
                 dirty = true;
                 break;
-            case KEYCODE_Uarrow:
+            case KEYCODE_UP:
                 ROS_INFO("UP");
                 if (mode == 0) // Position
                 {
@@ -148,7 +148,7 @@ void TeleopHexapod::keyLoop()
                 }
                 dirty = true;
                 break;
-            case KEYCODE_Darrow:
+            case KEYCODE_DOWN:
                 ROS_INFO("DOWN");
                 if (mode == 0) // Position
                 {
