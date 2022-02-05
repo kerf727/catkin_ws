@@ -1,55 +1,18 @@
 # Update these values based on hexapod.urdf.xacro
+base:
+  radius: 0.08
+  height: 0.04
+foot:
+  radius: 0.16464
 leg_L1:
-  foot:
-    x: -0.08232
-    y: 0.1426
-    z: -0.04
-  hip:
-    x: -0.04
-    y: 0.069282
-    z: 0.0
+  hip_angle: 120
 leg_R1:
-  foot:
-    x: 0.08232
-    y: 0.1426
-    z: -0.04
-  hip:
-    x: 0.04
-    y: 0.069282
-    z: 0.0
+  hip_angle: 60
 leg_L2:
-  foot:
-    x: -0.16464
-    y: 0.0
-    z: -0.04
-  hip:
-    x: -0.08
-    y: 0.0
-    z: 0.0
+  hip_angle: 180
 leg_R2:
-  foot:
-    x: 0.16464
-    y: 0.0
-    z: -0.04
-  hip:
-    x: 0.08
-    y: 0.0
-    z: 0.0
+  hip_angle: 0
 leg_L3:
-  foot:
-    x: -0.08232
-    y: -0.1426
-    z: -0.04
-  hip:
-    x: -0.04
-    y: -0.069282
-    z: 0.0
+  hip_angle: 240
 leg_R3:
-  foot:
-    x: 0.08232
-    y: -0.1426
-    z: -0.04
-  hip:
-    x: 0.04
-    y: -0.069282
-    z: 0.0
+  hip_angle: 300
