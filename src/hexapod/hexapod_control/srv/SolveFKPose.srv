@@ -1,5 +1,5 @@
 # Define the request
-float64[] jointPositions
+float64[] joint_positions
 ---
 # Define the result
 hexapod_control/Pose solution

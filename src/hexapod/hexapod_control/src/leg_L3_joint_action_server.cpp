@@ -112,7 +112,7 @@ public:
     {
         // Send FK request to service
         hexapod_control::SolveFKPose fkMsg;
-        fkMsg.request.jointPositions = this->currentState.position;
+        fkMsg.request.joint_positions = this->currentState.position;
         fkClient.call(fkMsg);
 
         return fkMsg.response;

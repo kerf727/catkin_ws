@@ -10,14 +10,14 @@
 #include "geometry_msgs/Twist.h"
 #include "math.h"
 
-std::string legName = "L1";
+std::string leg_name = "L1";
 
 class SetIKAction
 {
 public:
     SetIKAction(std::string name):
         server(node, name, boost::bind(&SetIKAction::executeCB, this, _1), false),
-        client("leg_" + legName + "_pose_action", true),
+        client("leg_" + leg_name + "_pose_action", true),
         actionName(name)
     {
         this->node = node;
@@ -60,7 +60,7 @@ public:
 		node.getParam("/hexapod/geometry/base/radius", base_radius);
         node.getParam("/hexapod/geometry/base/height", base_height);
         node.getParam("/hexapod/geometry/foot/radius", foot_radius);
-        node.getParam("/hexapod/geometry/leg_" + legName + "/hip_angle", hip_angle);
+        node.getParam("/hexapod/geometry/leg_" + leg_name + "/hip_angle", hip_angle);
 
         default_hip_x = base_radius*cos(hip_angle*M_PI/180);
         default_hip_y = base_radius*sin(hip_angle*M_PI/180);
@@ -208,10 +208,10 @@ private:
 int main(int argc, char **argv)
 {
     ROS_INFO("Starting IK Action Server...");
-    ros::init(argc, argv, "leg_" + legName + "_IK_action");
+    ros::init(argc, argv, "leg_" + leg_name + "_IK_action");
     ROS_INFO("Initialized ros...");
 
-    SetIKAction actionServer("leg_" + legName + "_IK_action");
+    SetIKAction actionServer("leg_" + leg_name + "_IK_action");
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;

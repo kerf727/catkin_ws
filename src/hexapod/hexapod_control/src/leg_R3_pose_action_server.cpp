@@ -43,7 +43,7 @@ public:
     {
         // Run IK to get joint positions
         hexapod_control::SolveIKPose ikMsg;
-        ikMsg.request.initialState = this->currentState.position;
+        ikMsg.request.initial_state = this->currentState.position;
         ikMsg.request.goal = goal->goal;
 
         this->ikClient.call(ikMsg);
@@ -152,7 +152,7 @@ public:
     {
         // Send FK request to service
         hexapod_control::SolveFKPose fkMsg;
-        fkMsg.request.jointPositions = config;
+        fkMsg.request.joint_positions = config;
         fkClient.call(fkMsg);
         return fkMsg.response;
     }

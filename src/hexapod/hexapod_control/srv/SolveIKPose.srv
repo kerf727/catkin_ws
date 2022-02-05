@@ -1,5 +1,5 @@
 # Define the request
-float64[] initialState
+float64[] initial_state
 hexapod_control/Pose goal
 ---
 # Define the result
