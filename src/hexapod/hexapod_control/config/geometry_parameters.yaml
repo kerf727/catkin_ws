@@ -1,18 +1,23 @@
-# Update these values based on hexapod.urdf.xacro
+# Update these values based on hexapod.urdf.xacro or other way around
 base:
-  radius: 0.08
-  height: 0.04
+  radius: 0.08 # m
+  height: 0.04 # m
+  to_origin_z: 0.01 # m
+coxa_length: 0.01 # m
+femur_length: 0.04 # m
+tibia_length: 0.08 # m
+
 foot:
-  radius: 0.16464
+  radius: 0.16464 # m
 leg_L1:
-  hip_angle: 120
+  hip_angle: 120 # degrees
 leg_R1:
-  hip_angle: 60
+  hip_angle: 60 # degrees
 leg_L2:
-  hip_angle: 180
+  hip_angle: 180 # degrees
 leg_R2:
-  hip_angle: 0
+  hip_angle: 0 # degrees
 leg_L3:
-  hip_angle: 240
+  hip_angle: 240 # degrees
 leg_R3:
-  hip_angle: 300
+  hip_angle: 300 # degrees
