@@ -8,7 +8,7 @@ float64 error
 float64 time
 int32 errorCode
 ---
-# Define a feedback message
+# Define the feedback message
 hexapod_control/Pose target
 hexapod_control/Pose currentPose
 float64 error

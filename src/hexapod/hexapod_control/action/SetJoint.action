@@ -8,7 +8,7 @@ float64 error
 float64 time
 int32 errorCode
 ---
-# Define a feedback message
+# Define the feedback message
 float64[] targets
 float64[] positions
 float64 error

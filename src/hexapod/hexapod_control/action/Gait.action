@@ -6,7 +6,7 @@ float64 strideHeight
 # Define the result
 int32 stepsTaken
 ---
-# Define a feedback message
+# Define the feedback message
 float64 currentPhase
 string stage
 hexapod_control/Pose currentPose

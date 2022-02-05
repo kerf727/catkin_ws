@@ -7,7 +7,7 @@ float64 time
 float64 distance
 float64 time
 ---
-# Define a feedback message
+# Define the feedback message
 int32 stage
 string description
 float64 distance
