@@ -37,6 +37,11 @@
                 </visual>
             </link>
         </model>
+        <gui>
+            <camera name="user_camera">
+                <pose>-0.1 -0.7 0.5 0 0.6 1.4</pose>
+            </camera>
+        </gui>
         <include>
             <uri>model://sun</uri>
         </include>
