@@ -59,10 +59,10 @@ namespace hexapod_control
             weights.col(0) << 1.0, 1.0, 1.0, 0.0, 0.0, 0.0;
 
             KDL::ChainIkSolverPos_LMA posSolver(chain, weights);
-            std::vector<double> initialstate = req.initialState;
+            std::vector<double> initial_state = req.initial_state;
 
             KDL::JntArray jntArray = KDL::JntArray(3);
-            jntArray.data = Eigen::Map<const Eigen::VectorXd>(initialstate.data(), initialstate.size());
+            jntArray.data = Eigen::Map<const Eigen::VectorXd>(initial_state.data(), initial_state.size());
 
             ROS_DEBUG("Parsing rotation...");
             KDL::Vector rotx = KDL::Vector(req.goal.rotx[0], req.goal.rotx[1], req.goal.rotx[2]);
@@ -108,14 +108,14 @@ namespace hexapod_control
             KDL::ChainFkSolverPos_recursive posSolver(chain);
 
             ROS_DEBUG("Joint positions:");
-            std::vector<double> jointPositions = req.jointPositions;
-            for (int i = 0; i < jointPositions.size(); ++i)
+            std::vector<double> joint_positions = req.joint_positions;
+            for (int i = 0; i < joint_positions.size(); ++i)
             {
-                ROS_DEBUG("  %f", jointPositions[i]);
+                ROS_DEBUG("  %f", joint_positions[i]);
             }
 
             KDL::JntArray jntArray = KDL::JntArray(7);
-            jntArray.data = Eigen::Map<const Eigen::VectorXd>(jointPositions.data(), jointPositions.size());
+            jntArray.data = Eigen::Map<const Eigen::VectorXd>(joint_positions.data(), joint_positions.size());
 
             KDL::Frame frame = KDL::Frame();
 
