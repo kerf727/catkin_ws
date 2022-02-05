@@ -1,0 +1,9 @@
+# Define the goal
+string movement_mode
+geometry_msgs/Twist twist
+---
+# Define the result
+float64 time
+---
+# Define the feedback message
+float64 time
