@@ -45,7 +45,7 @@
 
     <!-- ============================ Leg Macro ============================ -->
 
-    <xacro:macro name="leg" params="prefix x y z pitch roll yaw">
+    <xacro:macro name="leg" params="prefix x y z roll pitch yaw">
 
         <!-- Links -->
 
@@ -114,7 +114,7 @@
         <!-- Joints -->
         
         <joint name="${prefix}_hip_joint" type="revolute">
-            <origin xyz="${x} ${y} ${z}" rpy="${pitch} ${roll} ${yaw}"/>
+            <origin xyz="${x} ${y} ${z}" rpy="${roll} ${pitch} ${yaw}"/>
             <parent link="${robot_name}/base_link"/>
             <child link="${robot_name}/${prefix}_coxa_link"/>
             <axis xyz="0 1 0"/>
@@ -233,27 +233,27 @@
 
     <xacro:leg prefix="L1"
         x="${base_radius*cos(L1_angle)}" y="${base_radius*sin(L1_angle)}" z="0.01"
-        pitch="${-pi/2}" roll="0" yaw="0.5"
+        roll="${-pi/2}" pitch="0.0" yaw="0.5"
     />
     <xacro:leg prefix="R1"
         x="${base_radius*cos(R1_angle)}" y="${base_radius*sin(R1_angle)}" z="0.01"
-        pitch="${-pi/2}" roll="0" yaw="-0.5"
+        roll="${-pi/2}" pitch="0.0" yaw="-0.5"
     />
     <xacro:leg prefix="L2"
         x="${base_radius*cos(L2_angle)}" y="${base_radius*sin(L2_angle)}" z="0.01"
-        pitch="${-pi/2}" roll="0" yaw="${pi/2}"
+        roll="${-pi/2}" pitch="0.0" yaw="${pi/2}"
     />
     <xacro:leg prefix="R2"
         x="${base_radius*cos(R2_angle)}" y="${base_radius*sin(R2_angle)}" z="0.01"
-        pitch="${-pi/2}" roll="0" yaw="${-pi/2}"
+        roll="${-pi/2}" pitch="0.0" yaw="${-pi/2}"
     />
     <xacro:leg prefix="L3"
         x="${base_radius*cos(L3_angle)}" y="${base_radius*sin(L3_angle)}" z="0.01"
-        pitch="${-pi/2}" roll="0" yaw="${pi-0.5}"
+        roll="${-pi/2}" pitch="0.0" yaw="${pi-0.5}"
     />
     <xacro:leg prefix="R3"
         x="${base_radius*cos(R3_angle)}" y="${base_radius*sin(R3_angle)}" z="0.01"
-        pitch="${-pi/2}" roll="0" yaw="${-(pi-0.5)}"
+        roll="${-pi/2}" pitch="0.0" yaw="${-(pi-0.5)}"
     />
 
     <!-- ============================= Gazebo ============================= -->
