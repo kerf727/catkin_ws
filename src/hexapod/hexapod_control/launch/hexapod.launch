@@ -4,6 +4,7 @@
 
     <!-- Start up kinematic solver -->
     <node name="kinematics_solver" pkg="hexapod_control" type="kinematics_solver" respawn="false"/>
+    <node name="analytical_kinematics_solver" pkg="hexapod_control" type="analytical_kinematics_solver" respawn="false" output="screen"/>
 
     <!-- Start up joint action servers -->
     <node name="leg_L1_joint_action_server" pkg="hexapod_control" type="leg_L1_joint_action_server" respawn="false"/>
