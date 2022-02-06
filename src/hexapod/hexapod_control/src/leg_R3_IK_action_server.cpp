@@ -55,20 +55,21 @@ public:
 
 		double elapsed;
 		hexapod_control::Pose targetPose;
-        geometry_msgs::Point foot_position, hip_position;
+        Vector3 foot, hip, default_foot, default_hip;
 
 		node.getParam("/hexapod/geometry/base/radius", base_radius);
         node.getParam("/hexapod/geometry/base/height", base_height);
         node.getParam("/hexapod/geometry/foot/radius", foot_radius);
         node.getParam("/hexapod/geometry/leg_" + leg_name + "/hip_angle", hip_angle);
+        hip_angle = hip_angle * M_PI / 180; // convert to radians
 
-        default_hip_x = base_radius*cos(hip_angle*M_PI/180);
-        default_hip_y = base_radius*sin(hip_angle*M_PI/180);
-        default_hip_z = 0.0;
+        default_hip = {base_radius*cos(hip_angle),
+                       base_radius*sin(hip_angle),
+                       0.0};
 
-        default_foot_x = foot_radius*cos(hip_angle*M_PI/180);
-        default_foot_y = foot_radius*sin(hip_angle*M_PI/180);
-        default_foot_z = -base_height;
+        default_foot = {foot_radius*cos(hip_angle),
+                        foot_radius*sin(hip_angle),
+                        -base_height};
 
 		ros::Rate rate(50);
 		while (true)
@@ -83,10 +84,8 @@ public:
             elapsed = ros::Time::now().toSec() - start;
 
             // Calculate Hip and Leg Positions
-            hip_position = calcHips(twist);
-            foot_position.x = default_foot_x - (hip_position.x - default_hip_x);
-            foot_position.y = default_foot_y - (hip_position.y - default_hip_y);
-            foot_position.z = default_foot_z - (hip_position.z - default_hip_z);
+            hip = calcHips(twist);
+            foot = default_foot - (hip - default_hip);
 
             if (stop || preempted)
             {
@@ -94,9 +93,9 @@ public:
             }
 
 			// Build message
-			targetPose.x = foot_position.x;
-			targetPose.y = foot_position.y;
-			targetPose.z = foot_position.z;
+			targetPose.x = foot.x;
+			targetPose.y = foot.y;
+			targetPose.z = foot.z;
             targetPose.rotx = std::vector<double>{1.0, 0.0, 0.0};
 			targetPose.roty = std::vector<double>{0.0, 1.0, 0.0};
 			targetPose.rotz = std::vector<double>{0.0, 0.0, 1.0};
@@ -149,6 +148,32 @@ public:
 		this->stop = msg->data;
 	}
 
+    struct Vector3
+        {
+            double x, y, z;
+
+            Vector3() :
+                x(0.0), y(0.0), z(0.0) {}
+
+            Vector3(double x, double y, double z) :
+                x(x), y(y), z(z) {}
+
+            Vector3 operator+(const Vector3& other)
+            {
+                return Vector3(x + other.x, y + other.y, z + other.z);
+            }
+
+            Vector3 operator-(const Vector3& other)
+            {
+                return Vector3(x - other.x, y - other.y, z - other.z);
+            }
+
+            double norm()
+            {
+                return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
+            }
+        };
+
 private:
 	std::string actionName;
 	ros::NodeHandle node;
@@ -161,21 +186,21 @@ private:
     std::string movement_mode;
     geometry_msgs::Twist twist;
     double base_radius, base_height, foot_radius, hip_angle;
-    double default_foot_x, default_foot_y, default_foot_z;
-    double default_hip_x, default_hip_y, default_hip_z;
     bool stop = false;
     
-    geometry_msgs::Point calcHips(geometry_msgs::Twist twist)
+    Vector3 calcHips(geometry_msgs::Twist twist)
     {
-        geometry_msgs::Point result;
+        Vector3 result;
 
         std::vector<std::vector<double>> R = calcRot(twist.angular.x, twist.angular.y, twist.angular.z);
-        std::vector<double> s = {base_radius*cos(hip_angle*M_PI/180), base_radius*sin(hip_angle*M_PI/180), 0.0};
-        std::vector<double> Rs = multRbyS(R, s);
+        Vector3 s = {base_radius*cos(hip_angle),
+                     base_radius*sin(hip_angle),
+                     0.0};
+        Vector3 Rs = multRbyS(R, s);
 
-        result.x = twist.linear.x + Rs[0];
-        result.y = twist.linear.y + Rs[1];
-        result.z = twist.linear.z + Rs[2];
+        result = {twist.linear.x + Rs.x,
+                  twist.linear.y + Rs.y,
+                  twist.linear.z + Rs.z};
 
         return result;
     }
@@ -194,12 +219,12 @@ private:
         return result;
     }
 
-    std::vector<double> multRbyS(std::vector<std::vector<double>> R, std::vector<double> s)
+    Vector3 multRbyS(std::vector<std::vector<double>> R, Vector3 s)
     {
-        std::vector<double> result;
-        result.push_back(R[0][0]*s[0] + R[0][1]*s[1] + R[0][2]*s[2]);
-        result.push_back(R[1][0]*s[0] + R[1][1]*s[1] + R[1][2]*s[2]);
-        result.push_back(R[2][0]*s[0] + R[2][1]*s[1] + R[2][2]*s[2]);
+        Vector3 result;
+        result.x = R[0][0]*s.x + R[0][1]*s.y + R[0][2]*s.z;
+        result.y = R[1][0]*s.x + R[1][1]*s.y + R[1][2]*s.z;
+        result.z = R[2][0]*s.x + R[2][1]*s.y + R[2][2]*s.z;
 
         return result;
     }
