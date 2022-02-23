@@ -83,7 +83,7 @@ public:
 
             elapsed = ros::Time::now().toSec() - start;
 
-            // Calculate Hip and Leg Positions
+            // Calculate Hip and Foot Positions
             hip = calcHips(twist);
             foot = default_foot - (hip - default_hip);
 
@@ -149,30 +149,30 @@ public:
 	}
 
     struct Vector3
+    {
+        double x, y, z;
+
+        Vector3() :
+            x(0.0), y(0.0), z(0.0) {}
+
+        Vector3(double x, double y, double z) :
+            x(x), y(y), z(z) {}
+
+        Vector3 operator+(const Vector3& other)
         {
-            double x, y, z;
+            return Vector3(x + other.x, y + other.y, z + other.z);
+        }
 
-            Vector3() :
-                x(0.0), y(0.0), z(0.0) {}
+        Vector3 operator-(const Vector3& other)
+        {
+            return Vector3(x - other.x, y - other.y, z - other.z);
+        }
 
-            Vector3(double x, double y, double z) :
-                x(x), y(y), z(z) {}
-
-            Vector3 operator+(const Vector3& other)
-            {
-                return Vector3(x + other.x, y + other.y, z + other.z);
-            }
-
-            Vector3 operator-(const Vector3& other)
-            {
-                return Vector3(x - other.x, y - other.y, z - other.z);
-            }
-
-            double norm()
-            {
-                return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
-            }
-        };
+        double norm()
+        {
+            return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
+        }
+    };
 
 private:
 	std::string actionName;
