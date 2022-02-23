@@ -43,9 +43,9 @@ public:
 	{
 		double start = ros::Time::now().toSec();
 
-		this->initialPhase = goal->initialPhase;
-		this->strideTime = goal->strideTime;
-		this->strideHeight = goal->strideHeight;
+		this->initial_phase = goal->initial_phase;
+		this->stride_time = goal->stride_time;
+		this->stride_height = goal->stride_height;
 		double eps = 0.05;
 		
 		int state = 0;
@@ -55,8 +55,8 @@ public:
 
 		double t, elapsed;
 		steps = 0;
-		currentPhase = this->initialPhase;
-		hexapod_control::Pose targetPose;
+		current_phase = this->initial_phase;
+		hexapod_control::Pose target_pose;
 
 		ros::Rate rate(50);
 		while (true)
@@ -69,11 +69,11 @@ public:
             }
 
             elapsed = ros::Time::now().toSec() - start;
-			t = elapsed + this->initialPhase * strideTime; // account for initialPhase
+			t = elapsed + this->initial_phase * stride_time; // account for initial_phase
 
             // Calculate the current phase
-			currentPhase = fmod(t / this->strideTime, 1.0);
-            if (!initialized && currentPhase >= dutyFactor)
+			current_phase = fmod(t / this->stride_time, 1.0);
+            if (!initialized && current_phase >= dutyFactor)
             {
                 initialized = true;
             }
@@ -86,7 +86,7 @@ public:
             }
             else
             {
-                position = RotateInPlace(currentPhase);
+                position = RotateInPlace(current_phase);
             }
 
             if ((stop || preempted) && stage.compare("Support Phase") == 0)
@@ -95,29 +95,29 @@ public:
             }
 
 			// Build message
-			targetPose.x = position.x;
-			targetPose.y = position.y;
-			targetPose.z = position.z;
-			targetPose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-			targetPose.roty = std::vector<double>{0.0, 1.0, 0.0};
-			targetPose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+			target_pose.x = position.x;
+			target_pose.y = position.y;
+			target_pose.z = position.z;
+			target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+			target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+			target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
 
 			// Send parameters to pose action client
 			hexapod_control::SetPoseGoal poseAction;
-			poseAction.goal = targetPose;
+			poseAction.goal = target_pose;
 			poseAction.eps = eps;
 			this->client.sendGoal(poseAction,
 				boost::bind(&SetTrajectoryAction::publishResult, this, _1, _2),
 				boost::bind(&SetTrajectoryAction::activeCB, this),
 				boost::bind(&SetTrajectoryAction::publishFeedback, this, _1));
 
-			this->actionFeedback.currentPhase = currentPhase;
-			this->actionFeedback.targetPose = targetPose;
-			this->actionFeedback.currentPose = currentPose;
+			this->actionFeedback.current_phase = current_phase;
+			this->actionFeedback.target_pose = target_pose;
+			this->actionFeedback.current_pose = current_pose;
             this->actionFeedback.stage = stage;
 			server.publishFeedback(this->actionFeedback);
 
-            if (currentPhase == initialPhase)
+            if (current_phase == initial_phase)
             {
                 steps++;
             }
@@ -126,7 +126,7 @@ public:
 		}
 
 		// Publish result
-        this->actionResult.stepsTaken = steps;
+        this->actionResult.steps_taken = steps;
         if (preempted)
         {
             server.setPreempted(this->actionResult);
@@ -139,7 +139,7 @@ public:
 
 	void publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback)
 	{
-		currentPose = poseFeedback->currentPose;
+		current_pose = poseFeedback->current_pose;
 	}
 
 	void publishResult(const actionlib::SimpleClientGoalState& state,
@@ -179,11 +179,11 @@ private:
 	ros::Subscriber dutyFactorSubscriber;
 	ros::Subscriber bodyVelocitySubscriber;
     ros::Subscriber stopCommandSubscriber;
-	hexapod_control::Pose currentPose;
-	double initialPhase;
-	double currentPhase;
-	double strideTime;
-	double strideHeight;
+	hexapod_control::Pose current_pose;
+	double initial_phase;
+	double current_phase;
+	double stride_time;
+	double stride_height;
 	double dutyFactor;
 	double bodyVelocity;
     double xOffset = -0.08232;
@@ -219,7 +219,7 @@ private:
         geometry_msgs::Point position;
         double x, y, z;
 
-        double strideLength = strideTime * bodyVelocity;
+        double strideLength = stride_time * bodyVelocity;
 
         // Support phase
         if (phase < dutyFactor)
@@ -236,7 +236,7 @@ private:
             double transferPhase = (phase - dutyFactor) / (1.0 - dutyFactor);
             x = xOffset;
             y = yOffset + (strideLength * transferPhase - strideLength / 2);
-            z = 0.5 * strideHeight * cos(2 * M_PI * transferPhase - M_PI) + zOffset + strideHeight/2;
+            z = 0.5 * stride_height * cos(2 * M_PI * transferPhase - M_PI) + zOffset + stride_height/2;
             stage = "Transfer Phase";
         }
         
@@ -253,7 +253,7 @@ private:
         geometry_msgs::Point position;
         double x, y, z;
 
-        double strideLength = strideTime * bodyVelocity;
+        double strideLength = stride_time * bodyVelocity;
 
         // Support phase
         if (phase < dutyFactor)
@@ -270,7 +270,7 @@ private:
             double transferPhase = (phase - dutyFactor) / (1.0 - dutyFactor);
             x = xOffset - cos(30 * M_PI / 180) * (strideLength * transferPhase - strideLength / 2);
             y = yOffset - sin(30 * M_PI / 180) * (strideLength * transferPhase - strideLength / 2);
-            z = 0.5 * strideHeight * cos(2 * M_PI * transferPhase - M_PI) + zOffset + strideHeight/2;
+            z = 0.5 * stride_height * cos(2 * M_PI * transferPhase - M_PI) + zOffset + stride_height/2;
             stage = "Transfer Phase";
         }
         

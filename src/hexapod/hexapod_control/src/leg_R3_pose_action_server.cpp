@@ -130,7 +130,7 @@ public:
         hexapod_control::SolveFKPoseResponse fkResponse = getCurrentPose(jointFeedback->positions);
         if (fkResponse.result == 0)
         {
-            this->actionFeedback.currentPose = fkResponse.solution;
+            this->actionFeedback.current_pose = fkResponse.solution;
             this->actionFeedback.error = calculateTaskError(fkResponse);
             this->actionFeedback.time = jointFeedback->time;
             server.publishFeedback(this->actionFeedback);

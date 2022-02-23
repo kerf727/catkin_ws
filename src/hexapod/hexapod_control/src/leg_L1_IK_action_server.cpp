@@ -44,17 +44,18 @@ public:
 		double eps = 0.05;
         bool preempted = false;
         stop = false;
-
+        
+        // Extract goal
         this->movement_mode = goal->movement_mode;
-        this->twist.linear.x  = goal->twist.linear.x;
-        this->twist.linear.y  = goal->twist.linear.y;
-        this->twist.linear.z  = goal->twist.linear.z;
-        this->twist.angular.x = goal->twist.angular.x;
-        this->twist.angular.y = goal->twist.angular.y;
-        this->twist.angular.z = goal->twist.angular.z;
+        this->twist.linear.x  = goal->base_twist.linear.x;
+        this->twist.linear.y  = goal->base_twist.linear.y;
+        this->twist.linear.z  = goal->base_twist.linear.z;
+        this->twist.angular.x = goal->base_twist.angular.x;
+        this->twist.angular.y = goal->base_twist.angular.y;
+        this->twist.angular.z = goal->base_twist.angular.z;
 
 		double elapsed;
-		hexapod_control::Pose targetPose;
+		hexapod_control::Pose target_pose;
         Vector3 foot, hip, default_foot, default_hip;
 
 		node.getParam("/hexapod/geometry/base/radius", base_radius);
@@ -93,16 +94,16 @@ public:
             }
 
 			// Build message
-			targetPose.x = foot.x;
-			targetPose.y = foot.y;
-			targetPose.z = foot.z;
-            targetPose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-			targetPose.roty = std::vector<double>{0.0, 1.0, 0.0};
-			targetPose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+			target_pose.x = foot.x;
+			target_pose.y = foot.y;
+			target_pose.z = foot.z;
+            target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+			target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+			target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
 
 			// Send parameters to pose action client
 			hexapod_control::SetPoseGoal poseAction;
-			poseAction.goal = targetPose;
+			poseAction.goal = target_pose;
 			poseAction.eps = eps;
 			this->client.sendGoal(poseAction,
 				boost::bind(&SetIKAction::publishResult, this, _1, _2),
@@ -129,7 +130,7 @@ public:
 
 	void publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback)
 	{
-		currentPose = poseFeedback->currentPose;
+		current_pose = poseFeedback->current_pose;
 	}
 
 	void publishResult(const actionlib::SimpleClientGoalState& state,
@@ -182,7 +183,7 @@ private:
     hexapod_teleop::TeleopFeedback actionFeedback;
     hexapod_teleop::TeleopResult actionResult;
     ros::Subscriber stopCommandSubscriber;
-	hexapod_control::Pose currentPose;
+	hexapod_control::Pose current_pose;
     std::string movement_mode;
     geometry_msgs::Twist twist;
     double base_radius, base_height, foot_radius, hip_angle;

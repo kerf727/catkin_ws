@@ -1,13 +1,13 @@
 # Define the goal
-float64 initialPhase
-float64 strideTime
-float64 strideHeight
+float64 initial_phase
+float64 stride_time
+float64 stride_height
 ---
 # Define the result
-int32 stepsTaken
+int32 steps_taken
 ---
 # Define the feedback message
-float64 currentPhase
+float64 current_phase
 string stage
-hexapod_control/Pose currentPose
-hexapod_control/Pose targetPose
+hexapod_control/Pose current_pose
+hexapod_control/Pose target_pose

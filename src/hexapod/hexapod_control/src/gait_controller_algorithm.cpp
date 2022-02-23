@@ -61,12 +61,12 @@ public:
         int gaitType = goal->gaitType;
         double targetDistance = goal->distance;
         double targetTime = goal->time;
-        double initialPhase[4];
+        double initial_phase[4];
         ROS_INFO("Gait Controller goal received.");
 
         // Calculate gait parameters
         int numSteps;
-        double bodyVelocity, bodyAcceleration, strideTime, strideHeight, dutyRatio;
+        double bodyVelocity, bodyAcceleration, stride_time, stride_height, dutyRatio;
         std::vector<double> relative_phases;
         if (gaitType == 0) // Walking
         {
@@ -75,8 +75,8 @@ public:
             node.getParam("/hexapod/gait/walking/acceleration", bodyAcceleration);
             node.getParam("/hexapod/gait/walking/duty_factor", dutyRatio);
             node.getParam("/hexapod/gait/walking/relative_phase", relative_phases);
-            node.getParam("/hexapod/gait/walking/stride_time", strideTime);
-            node.getParam("/hexapod/gait/walking/stride_height", strideHeight);
+            node.getParam("/hexapod/gait/walking/stride_time", stride_time);
+            node.getParam("/hexapod/gait/walking/stride_height", stride_height);
         }
 
         // Get initial position
@@ -88,34 +88,34 @@ public:
         // Send goals to pose action servers
         ROS_INFO("Initializing leg trajectories...");
         hexapod_control::GaitGoal gaitAction;
-        gaitAction.strideTime = strideTime;
-        gaitAction.strideHeight = strideHeight;
-        gaitAction.initialPhase = relative_phases[0];
+        gaitAction.stride_time = stride_time;
+        gaitAction.stride_height = stride_height;
+        gaitAction.initial_phase = relative_phases[0];
         this->L1_client.sendGoal(gaitAction,
                                  boost::bind(&GaitController::L1Result, this, _1, _2),
                                  boost::bind(&GaitController::L1Active, this),
                                  boost::bind(&GaitController::L1Feedback, this, _1));
-        gaitAction.initialPhase = relative_phases[1];
+        gaitAction.initial_phase = relative_phases[1];
         this->R1_client.sendGoal(gaitAction,
                                  boost::bind(&GaitController::R1Result, this, _1, _2),
                                  boost::bind(&GaitController::R1Active, this),
                                  boost::bind(&GaitController::R1Feedback, this, _1));
-        gaitAction.initialPhase = relative_phases[2];
+        gaitAction.initial_phase = relative_phases[2];
         this->L2_client.sendGoal(gaitAction,
                                  boost::bind(&GaitController::L2Result, this, _1, _2),
                                  boost::bind(&GaitController::L2Active, this),
                                  boost::bind(&GaitController::L2Feedback, this, _1));
-        gaitAction.initialPhase = relative_phases[3];
+        gaitAction.initial_phase = relative_phases[3];
         this->R2_client.sendGoal(gaitAction,
                                  boost::bind(&GaitController::R2Result, this, _1, _2),
                                  boost::bind(&GaitController::R2Active, this),
                                  boost::bind(&GaitController::R2Feedback, this, _1));
-        gaitAction.initialPhase = relative_phases[4];
+        gaitAction.initial_phase = relative_phases[4];
         this->L3_client.sendGoal(gaitAction,
                                  boost::bind(&GaitController::L3Result, this, _1, _2),
                                  boost::bind(&GaitController::L3Active, this),
                                  boost::bind(&GaitController::L3Feedback, this, _1));
-        gaitAction.initialPhase = relative_phases[5];
+        gaitAction.initial_phase = relative_phases[5];
         this->R3_client.sendGoal(gaitAction,
                                  boost::bind(&GaitController::R3Result, this, _1, _2),
                                  boost::bind(&GaitController::R3Active, this),
@@ -403,7 +403,7 @@ private:
     ros::Publisher bodyVelocityPublisher;
     ros::Publisher stopCommandPublisher;
     ros::ServiceClient linkStateClient;
-	hexapod_control::Pose currentPose;
+	hexapod_control::Pose current_pose;
     int n_legs = 6;
 	double initial_phase[6];
 	double current_phase[6];

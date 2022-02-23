@@ -289,7 +289,7 @@ private:
     double base_pos_scale, base_rot_scale, hex_pos_scale, hex_rot_scale;
     Vector3 base_pos, base_rot, hex_pos;
     double hex_rot;
-    std::string movement_mode, stationary_mode;
+    std::string movement_mode;
     double base_pos_shift, base_rot_deg, hex_pos_delta, hex_rot_delta;
 };
 
