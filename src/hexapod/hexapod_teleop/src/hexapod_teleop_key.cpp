@@ -27,18 +27,33 @@ public:
                                       R3_IK_client("leg_R3_IK_action", true),
                                       actionName(name)
     {
-        pos_x = 0.0;
-        rot_x = 0.0;
-        pos_y = 0.0;
-        rot_y = 0.0;
-        pos_z = 0.0;
-        rot_z = 0.0;
-        pos_scale = 1.0;
-        rot_scale = 1.0;
+        base_pos.x = 0.0;
+        base_pos.y = 0.0;
+        base_pos.z = 0.0;
+        base_rot.x = 0.0;
+        base_rot.y = 0.0;
+        base_rot.z = 0.0;
+
+        // update this to hexapod's current location?
+        hex_pos.x = 0.0;
+        hex_pos.y = 0.0;
+        hex_pos.z = 0.05; // figure out what this should be for default height
+        hex_rot = 0.0;
+
+        base_pos_scale = 1.0;
+        base_rot_scale = 1.0;
+        hex_pos_scale = 1.0;
+        hex_rot_scale = 1.0;
+
+        base_pos_shift = 0.02;
+        base_rot_deg = 15; // degrees
+        hex_pos_delta = 0.04;
+        hex_rot_delta = 10; // degrees
+
         stationary_mode = "Stationary/Position";
 
-        // node.param("scale_pos", pos_scale, pos_scale);
-        // node.param("scale_rot", rot_scale, rot_scale);
+        // node.param("scale_pos", base_pos.scale, base_pos.scale);
+        // node.param("scale_rot", base_rot.scale, base_rot.scale);
 
         ROS_INFO("Waiting for IK Servers...");
         L1_IK_client.waitForServer(ros::Duration(30));
@@ -78,69 +93,102 @@ public:
                 perror("read():");
                 exit(-1);
             }
+            
+            // base_pos.x = base_rot.x = 0.0;
+            // base_pos.y = base_rot.y = 0.0;
+            // base_pos.z = base_rot.z = 0.0;
 
-            pos_x = rot_x = 0.0;
-            pos_y = rot_y = 0.0;
-            pos_z = rot_z = 0.0;
             ROS_DEBUG("value: 0x%02X\n", c);
 
             switch(c)
             {
                 case KEYCODE_LEFT:
                     ROS_INFO("LEFT");
-                    if (stationary_mode == "Stationary/Position")
+                    if (movement_mode == "Stationary")
                     {
-                        pos_x = -trans;
+                        if (stationary_mode == "Stationary/Position")
+                        {
+                            base_pos.x = -base_pos_shift;
+                        }
+                        else if (stationary_mode == "Stationary/Orientation")
+                        {
+                            base_rot.y = -base_rot_deg*M_PI/180;
+                        }
                     }
-                    else if (stationary_mode == "Stationary/Orientation")
+                    else if (movement_mode == "Moving")
                     {
-                        rot_y =  -rot_deg*M_PI/180;
+                        hex_pos.x -= hex_pos_delta;
                     }
+
                     dirty = true;
                     break;
 
                 case KEYCODE_RIGHT:
                     ROS_INFO("RIGHT");
-                    if (stationary_mode == "Stationary/Position")
+                    if (movement_mode == "Stationary")
                     {
-                        pos_x =  trans;
+                        if (stationary_mode == "Stationary/Position")
+                        {
+                            base_pos.x = base_pos_shift;
+                        }
+                        else if (stationary_mode == "Stationary/Orientation")
+                        {
+                            base_rot.y = base_rot_deg*M_PI/180;
+                        }
                     }
-                    else if (stationary_mode == "Stationary/Orientation")
+                    else if (movement_mode == "Moving")
                     {
-                        rot_y =  rot_deg*M_PI/180;
+                        hex_pos.x += hex_pos_delta;
                     }
+
                     dirty = true;
                     break;
 
                 case KEYCODE_UP:
                     ROS_INFO("UP");
-                    if (stationary_mode == "Stationary/Position")
+                    if (movement_mode == "Stationary")
                     {
-                        pos_y =  trans;
+                        if (stationary_mode == "Stationary/Position")
+                        {
+                            base_pos.y = base_pos_shift;
+                        }
+                        else if (stationary_mode == "Stationary/Orientation")
+                        {
+                            base_rot.x = -base_rot_deg*M_PI/180;
+                        }
                     }
-                    else if (stationary_mode == "Stationary/Orientation")
+                    else if (movement_mode == "Moving")
                     {
-                        rot_x =  -rot_deg*M_PI/180;
+                        hex_pos.y += hex_pos_delta;
                     }
+
                     dirty = true;
                     break;
 
                 case KEYCODE_DOWN:
                     ROS_INFO("DOWN");
-                    if (stationary_mode == "Stationary/Position")
+                    if (movement_mode == "Stationary")
                     {
-                        pos_y = -trans;
+                        if (stationary_mode == "Stationary/Position")
+                        {
+                            base_pos.y = -base_pos_shift;
+                        }
+                        else if (stationary_mode == "Stationary/Orientation")
+                        {
+                            base_rot.x = base_rot_deg*M_PI/180;
+                        }
                     }
-                    else if (stationary_mode == "Stationary/Orientation")
+                    else if (movement_mode == "Moving")
                     {
-                        rot_x =  rot_deg*M_PI/180;
+                        hex_pos.y -= hex_pos_delta;
                     }
+
                     dirty = true;
                     break;
 
                 case KEYCODE_Q:
                     ROS_INFO("Q");
-                    // Switch between Position and Orientation modes
+                    // Switch between Stationary Position and Stationary Orientation modes
                     if (stationary_mode == "Stationary/Position")
                     {
                         stationary_mode = "Stationary/Orientation";
@@ -149,12 +197,13 @@ public:
                     {
                         stationary_mode = "Stationary/Position";
                     }
+
                     dirty = true;
                     break;
 
                 case KEYCODE_D:
                     ROS_INFO("D");
-                    // Switch between Position and Orientation modes
+                    // Switch between Stationary and Moving modes
                     if (movement_mode == "Stationary")
                     {
                         movement_mode = "Moving";
@@ -163,23 +212,31 @@ public:
                     {
                         movement_mode = "Stationary";
                     }
+
                     dirty = true;
                     break;
             }
 
-            geometry_msgs::Twist twist;
-            twist.linear.x  = pos_scale*pos_x;
-            twist.linear.y  = pos_scale*pos_y;
-            twist.linear.z  = pos_scale*pos_z;
-            twist.angular.x = rot_scale*rot_x;
-            twist.angular.y = rot_scale*rot_y;
-            twist.angular.z = rot_scale*rot_z;
+            geometry_msgs::Twist base_twist;
+            base_twist.linear.x  = base_pos_scale*base_pos.x;
+            base_twist.linear.y  = base_pos_scale*base_pos.y;
+            base_twist.linear.z  = base_pos_scale*base_pos.z;
+            base_twist.angular.x = base_rot_scale*base_rot.x;
+            base_twist.angular.y = base_rot_scale*base_rot.y;
+            base_twist.angular.z = base_rot_scale*base_rot.z;
+
+            geometry_msgs::Twist hex_twist;
+            hex_twist.linear.x  = hex_pos_scale*hex_pos.x;
+            hex_twist.linear.y  = hex_pos_scale*hex_pos.y;
+            hex_twist.linear.z  = hex_pos_scale*hex_pos.z;
+            hex_twist.angular.z = hex_rot_scale*hex_rot;
             
             if(dirty == true)
             {
                 hexapod_teleop::TeleopGoal goal;
                 goal.movement_mode = movement_mode; // Stationary or Moving
-                goal.twist = twist;
+                goal.base_twist = base_twist;
+                goal.hex_twist = hex_twist;
                 L1_IK_client.sendGoal(goal);
                 R1_IK_client.sendGoal(goal);
                 L2_IK_client.sendGoal(goal);
@@ -194,6 +251,32 @@ public:
         return;
     }
 
+    struct Vector3
+    {
+        double x, y, z;
+
+        Vector3() :
+            x(0.0), y(0.0), z(0.0) {}
+
+        Vector3(double x, double y, double z) :
+            x(x), y(y), z(z) {}
+
+        Vector3 operator+(const Vector3& other)
+        {
+            return Vector3(x + other.x, y + other.y, z + other.z);
+        }
+
+        Vector3 operator-(const Vector3& other)
+        {
+            return Vector3(x - other.x, y - other.y, z - other.z);
+        }
+
+        double norm()
+        {
+            return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
+        }
+    };
+
 private:
     std::string actionName;
     // ros::NodeHandle node;
@@ -203,10 +286,11 @@ private:
     actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R2_IK_client;
     actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L3_IK_client;
     actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R3_IK_client;
-    double pos_x, rot_x, pos_y, rot_y, pos_z, rot_z, pos_scale, rot_scale;
-    std::string stationary_mode, movement_mode;
-    double trans = 0.02;
-    double rot_deg = 15;
+    double base_pos_scale, base_rot_scale, hex_pos_scale, hex_rot_scale;
+    Vector3 base_pos, base_rot, hex_pos;
+    double hex_rot;
+    std::string movement_mode, stationary_mode;
+    double base_pos_shift, base_rot_deg, hex_pos_delta, hex_rot_delta;
 };
 
 int kfd = 0;

@@ -1,6 +1,7 @@
 # Define the goal
 string movement_mode
-geometry_msgs/Twist twist
+geometry_msgs/Twist base_twist
+geometry_msgs/Twist hex_twist
 ---
 # Define the result
 float64 time
