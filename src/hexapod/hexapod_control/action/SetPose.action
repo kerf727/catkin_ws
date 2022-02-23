@@ -3,13 +3,13 @@ hexapod_control/Pose goal
 float64 eps
 ---
 # Define the result
-hexapod_control/Pose finalPose
+hexapod_control/Pose final_pose
 float64 error
 float64 time
-int32 errorCode
+int32 error_code
 ---
 # Define the feedback message
 hexapod_control/Pose target
-hexapod_control/Pose currentPose
+hexapod_control/Pose current_pose
 float64 error
 float64 time

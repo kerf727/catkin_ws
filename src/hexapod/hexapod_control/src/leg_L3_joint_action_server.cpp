@@ -98,11 +98,11 @@ public:
         this->actionResult.time = ros::Time::now().toSec() - start;
         if (this->actionResult.error < eps)
         {
-            this->actionResult.errorCode = 0;
+            this->actionResult.error_code = 0;
         }
         else
         {
-            this->actionResult.errorCode = -2;
+            this->actionResult.error_code = -2;
         }
         
         server.setSucceeded(this->actionResult);

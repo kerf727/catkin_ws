@@ -1,5 +1,5 @@
 # Define the goal
-int32 gaitType
+int32 gait_type
 float64 distance
 float64 time
 ---

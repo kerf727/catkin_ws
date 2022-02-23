@@ -6,7 +6,7 @@ float64 eps
 float64[] result
 float64 error
 float64 time
-int32 errorCode
+int32 error_code
 ---
 # Define the feedback message
 float64[] targets

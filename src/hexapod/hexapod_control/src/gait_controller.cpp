@@ -54,7 +54,7 @@ public:
     void executeCB(const hexapod_control::MoveGoalConstPtr &goal)
     {
         // Extract goal
-        int gaitType = goal->gaitType;
+        int gait_type = goal->gait_type;
         double targetDistance = goal->distance;
         double targetTime = goal->time;
         double initial_phase[4];
@@ -64,7 +64,7 @@ public:
         int numSteps;
         double bodyVelocity, bodyAcceleration, stride_time, stride_height, dutyRatio;
         std::vector<double> relative_phases;
-        if (gaitType == 0) // Walking
+        if (gait_type == 0) // Walking
         {
             // Get parameters from parameter server
             node.getParam("/hexapod/gait/walking/velocity", bodyVelocity);

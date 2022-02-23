@@ -46,12 +46,12 @@ public:
         stop = false;
 
         this->movement_mode = goal->movement_mode;
-        this->twist.linear.x  = goal->twist.linear.x;
-        this->twist.linear.y  = goal->twist.linear.y;
-        this->twist.linear.z  = goal->twist.linear.z;
-        this->twist.angular.x = goal->twist.angular.x;
-        this->twist.angular.y = goal->twist.angular.y;
-        this->twist.angular.z = goal->twist.angular.z;
+        this->twist.linear.x  = goal->base_twist.linear.x;
+        this->twist.linear.y  = goal->base_twist.linear.y;
+        this->twist.linear.z  = goal->base_twist.linear.z;
+        this->twist.angular.x = goal->base_twist.angular.x;
+        this->twist.angular.y = goal->base_twist.angular.y;
+        this->twist.angular.z = goal->base_twist.angular.z;
 
 		double elapsed;
 		hexapod_control::Pose target_pose;

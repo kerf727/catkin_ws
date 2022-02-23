@@ -51,7 +51,7 @@ public:
         // IK Solver failed
         if (ikMsg.response.result < 0)
         {
-            this->actionResult.errorCode = -1;
+            this->actionResult.error_code = -1;
             server.setSucceeded(this->actionResult);
         }
         this->targetx = goal->goal.x;
@@ -105,21 +105,21 @@ public:
         hexapod_control::SolveFKPoseResponse fkResponse = getCurrentPose(this->currentState.position);
         if (fkResponse.result == 0)
         {
-            this->actionResult.finalPose = fkResponse.solution;
+            this->actionResult.final_pose = fkResponse.solution;
             this->actionResult.error = calculateTaskError(fkResponse);
             this->actionResult.time = ros::Time::now().toSec() - start;
             if (this->actionResult.error < this->eps)
             {
-                this->actionResult.errorCode = 0;
+                this->actionResult.error_code = 0;
             }
             else
             {
-                this->actionResult.errorCode = -2;
+                this->actionResult.error_code = -2;
             }
         }
         else
         {
-            this->actionResult.errorCode = -3;
+            this->actionResult.error_code = -3;
         }
         server.setSucceeded(this->actionResult);
     }
