@@ -45,7 +45,6 @@ public:
         bool preempted = false;
         stop = false;
         
-        // Extract goal
         this->movement_mode = goal->movement_mode;
         this->twist.linear.x  = goal->base_twist.linear.x;
         this->twist.linear.y  = goal->base_twist.linear.y;
