@@ -32,12 +32,12 @@
     
     <!-- Start up IK action servers -->
     <rosparam file="$(find hexapod_control)/config/geometry_parameters.yaml" ns="/hexapod/geometry"/>
-    <node name="leg_L1_IK_action_server" pkg="hexapod_control" type="leg_L1_IK_action_server" respawn="false" output="screen"/>
-    <node name="leg_R1_IK_action_server" pkg="hexapod_control" type="leg_R1_IK_action_server" respawn="false" output="screen"/>
-    <node name="leg_L2_IK_action_server" pkg="hexapod_control" type="leg_L2_IK_action_server" respawn="false" output="screen"/>
-    <node name="leg_R2_IK_action_server" pkg="hexapod_control" type="leg_R2_IK_action_server" respawn="false" output="screen"/>
-    <node name="leg_L3_IK_action_server" pkg="hexapod_control" type="leg_L3_IK_action_server" respawn="false" output="screen"/>
-    <node name="leg_R3_IK_action_server" pkg="hexapod_control" type="leg_R3_IK_action_server" respawn="false" output="screen"/>
+    <node name="leg_L1_AIK_action_server" pkg="hexapod_control" type="leg_L1_AIK_action_server" respawn="false" output="screen"/>
+    <node name="leg_R1_AIK_action_server" pkg="hexapod_control" type="leg_R1_AIK_action_server" respawn="false" output="screen"/>
+    <node name="leg_L2_AIK_action_server" pkg="hexapod_control" type="leg_L2_AIK_action_server" respawn="false" output="screen"/>
+    <node name="leg_R2_AIK_action_server" pkg="hexapod_control" type="leg_R2_AIK_action_server" respawn="false" output="screen"/>
+    <node name="leg_L3_AIK_action_server" pkg="hexapod_control" type="leg_L3_AIK_action_server" respawn="false" output="screen"/>
+    <node name="leg_R3_AIK_action_server" pkg="hexapod_control" type="leg_R3_AIK_action_server" respawn="false" output="screen"/>
 
     <!-- Start up gait controller -->
     <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>

@@ -233,10 +233,10 @@ private:
 int main(int argc, char **argv)
 {
     ROS_INFO("Starting IK Action Server...");
-    ros::init(argc, argv, "leg_" + leg_name + "_IK_action");
+    ros::init(argc, argv, "leg_" + leg_name + "_AIK_action");
     ROS_INFO("Initialized ros...");
 
-    SetIKAction actionServer("leg_" + leg_name + "_IK_action");
+    SetIKAction actionServer("leg_" + leg_name + "_AIK_action");
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;

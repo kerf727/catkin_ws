@@ -19,12 +19,12 @@
 class TeleopHexapod
 {
 public:
-    TeleopHexapod(std::string name) : L1_IK_client("leg_L1_IK_action", true),
-                                      R1_IK_client("leg_R1_IK_action", true),
-                                      L2_IK_client("leg_L2_IK_action", true),
-                                      R2_IK_client("leg_R2_IK_action", true),
-                                      L3_IK_client("leg_L3_IK_action", true),
-                                      R3_IK_client("leg_R3_IK_action", true),
+    TeleopHexapod(std::string name) : L1_client("leg_L1_AIK_action", true),
+                                      R1_client("leg_R1_AIK_action", true),
+                                      L2_client("leg_L2_AIK_action", true),
+                                      R2_client("leg_R2_AIK_action", true),
+                                      L3_client("leg_L3_AIK_action", true),
+                                      R3_client("leg_R3_AIK_action", true),
                                       actionName(name)
     {
         base_pos.x = 0.0;
@@ -50,18 +50,19 @@ public:
         hex_pos_delta = 0.04;
         hex_rot_delta = 10; // degrees
 
+        movement_mode = "Stationary";
         stationary_mode = "Stationary/Position";
 
         // node.param("scale_pos", base_pos.scale, base_pos.scale);
         // node.param("scale_rot", base_rot.scale, base_rot.scale);
 
         ROS_INFO("Waiting for IK Servers...");
-        L1_IK_client.waitForServer(ros::Duration(30));
-        R1_IK_client.waitForServer(ros::Duration(30));
-        L2_IK_client.waitForServer(ros::Duration(30));
-        R2_IK_client.waitForServer(ros::Duration(30));
-        L3_IK_client.waitForServer(ros::Duration(30));
-        R3_IK_client.waitForServer(ros::Duration(30));
+        L1_client.waitForServer(ros::Duration(30));
+        R1_client.waitForServer(ros::Duration(30));
+        L2_client.waitForServer(ros::Duration(30));
+        R2_client.waitForServer(ros::Duration(30));
+        L3_client.waitForServer(ros::Duration(30));
+        R3_client.waitForServer(ros::Duration(30));
 
         ROS_INFO("Teleop controller ready.");
     }
@@ -94,10 +95,6 @@ public:
                 exit(-1);
             }
             
-            // base_pos.x = base_rot.x = 0.0;
-            // base_pos.y = base_rot.y = 0.0;
-            // base_pos.z = base_rot.z = 0.0;
-
             ROS_DEBUG("value: 0x%02X\n", c);
 
             switch(c)
@@ -109,6 +106,7 @@ public:
                         if (stationary_mode == "Stationary/Position")
                         {
                             base_pos.x = -base_pos_shift;
+                            base_pos.y = 0.0;
                         }
                         else if (stationary_mode == "Stationary/Orientation")
                         {
@@ -130,6 +128,7 @@ public:
                         if (stationary_mode == "Stationary/Position")
                         {
                             base_pos.x = base_pos_shift;
+                            base_pos.y = 0.0;
                         }
                         else if (stationary_mode == "Stationary/Orientation")
                         {
@@ -150,6 +149,7 @@ public:
                     {
                         if (stationary_mode == "Stationary/Position")
                         {
+                            base_pos.x = 0.0;
                             base_pos.y = base_pos_shift;
                         }
                         else if (stationary_mode == "Stationary/Orientation")
@@ -171,6 +171,7 @@ public:
                     {
                         if (stationary_mode == "Stationary/Position")
                         {
+                            base_pos.x = 0.0;
                             base_pos.y = -base_pos_shift;
                         }
                         else if (stationary_mode == "Stationary/Orientation")
@@ -237,12 +238,12 @@ public:
                 goal.movement_mode = movement_mode; // Stationary or Moving
                 goal.base_twist = base_twist;
                 goal.hex_twist = hex_twist;
-                L1_IK_client.sendGoal(goal);
-                R1_IK_client.sendGoal(goal);
-                L2_IK_client.sendGoal(goal);
-                R2_IK_client.sendGoal(goal);
-                L3_IK_client.sendGoal(goal);
-                R3_IK_client.sendGoal(goal);
+                L1_client.sendGoal(goal);
+                R1_client.sendGoal(goal);
+                L2_client.sendGoal(goal);
+                R2_client.sendGoal(goal);
+                L3_client.sendGoal(goal);
+                R3_client.sendGoal(goal);
 
                 dirty = false;
             }
@@ -280,12 +281,12 @@ public:
 private:
     std::string actionName;
     // ros::NodeHandle node;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L1_IK_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R1_IK_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L2_IK_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R2_IK_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L3_IK_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R3_IK_client;
+    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L1_client;
+    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R1_client;
+    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L2_client;
+    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R2_client;
+    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L3_client;
+    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R3_client;
     double base_pos_scale, base_rot_scale, hex_pos_scale, hex_rot_scale;
     Vector3 base_pos, base_rot, hex_pos;
     double hex_rot;
