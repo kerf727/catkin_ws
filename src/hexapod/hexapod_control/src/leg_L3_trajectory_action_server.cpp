@@ -9,12 +9,14 @@
 #include "gazebo_msgs/GetLinkState.h"
 #include "math.h"
 
+std::string leg_name = "L3";
+
 class SetTrajectoryAction
 {
 public:
     SetTrajectoryAction(std::string name):
         server(node, name, boost::bind(&SetTrajectoryAction::executeCB, this, _1), false),
-        client("leg_L3_pose_action", true),
+        client("leg_" + leg_name + "_pose_action", true),
         actionName(name)
     {
         this->node = node;
@@ -25,6 +27,7 @@ public:
 		ROS_INFO("Subscribing to Gait Controller...");
 		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
 		this->bodyVelocitySubscriber = node.subscribe("/hexapod/gait/body_velocity", 10, &SetTrajectoryAction::bodyVelocityCB, this);
+		this->velocityAngleSubscriber = node.subscribe("/hexapod/gait/velocity_angle", 10, &SetTrajectoryAction::velocityAngleCB, this);
 
         ROS_INFO("Subscribing to Gazebo GetLinkState service");
         this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
@@ -43,6 +46,7 @@ public:
 	{
 		double start = ros::Time::now().toSec();
 
+		this->gait_mode = goal->gait_mode;
 		this->initial_phase = goal->initial_phase;
 		this->stride_time = goal->stride_time;
 		this->stride_height = goal->stride_height;
@@ -55,8 +59,19 @@ public:
 
 		double t, elapsed;
 		steps = 0;
-		current_phase = this->initial_phase;
+		current_phase = initial_phase;
 		hexapod_control::Pose target_pose;
+
+        node.getParam("/hexapod/geometry/base/radius", base_radius);
+        node.getParam("/hexapod/geometry/base/height", base_height);
+        node.getParam("/hexapod/geometry/foot/radius", foot_radius);
+        node.getParam("/hexapod/geometry/leg_" + leg_name + "/hip_angle", hip_angle);
+        hip_angle = hip_angle*M_PI/180; // convert to radians
+
+        // Set center of workspace for this leg
+        center.x = foot_radius*cos(hip_angle);
+        center.y = foot_radius*sin(hip_angle);
+        center.z = -base_height;
 
 		ros::Rate rate(50);
 		while (true)
@@ -69,24 +84,40 @@ public:
             }
 
             elapsed = ros::Time::now().toSec() - start;
-			t = elapsed + this->initial_phase * stride_time; // account for initial_phase
+			t = elapsed + initial_phase*stride_time; // account for initial_phase
 
             // Calculate the current phase
-			current_phase = fmod(t / this->stride_time, 1.0);
-            if (!initialized && current_phase >= dutyFactor)
+			current_phase = fmod(t/stride_time, 1.0);
+            if (!initialized && current_phase >= duty_factor)
             {
                 initialized = true;
             }
 
             // Calculate the target position
-            geometry_msgs::Point position;
-            if (!initialized)
+            geometry_msgs::Point pos;
+            if (!initialized && gait_mode == "Moving/Position")
             {
-                position = InitialTrajectory(elapsed);
+                pos = InitialWalk(current_phase);
             }
-            else
+            else if (initialized && gait_mode == "Moving/Position")
             {
-                position = RotateInPlace(current_phase);
+                pos = Walk(elapsed);
+            }
+            else if (!initialized && gait_mode == "Moving/Orientation")
+            {
+                pos = InitialRotate(current_phase);
+            }
+            else if (initialized && gait_mode == "Moving/Orientation")
+            {
+                pos = Rotate(current_phase);
+            }
+            else if (gait_mode == "Stationary/Position")
+            {
+                // TODO: Add Stationary/... options to combine with AIK code
+            }
+            else if (gait_mode == "Stationary/Orientation")
+            {
+                // TODO: Add Stationary/... options to combine with AIK code
             }
 
             if ((stop || preempted) && stage.compare("Support Phase") == 0)
@@ -95,9 +126,9 @@ public:
             }
 
 			// Build message
-			target_pose.x = position.x;
-			target_pose.y = position.y;
-			target_pose.z = position.z;
+			target_pose.x = pos.x;
+			target_pose.y = pos.y;
+			target_pose.z = pos.z;
 			target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
 			target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
 			target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
@@ -155,12 +186,17 @@ public:
 
 	void dutyFactorCB(const std_msgs::Float64ConstPtr& msg)
 	{
-		this->dutyFactor = msg->data;
+		this->duty_factor = msg->data;
 	}
 
 	void bodyVelocityCB(const std_msgs::Float64ConstPtr& msg)
 	{
-		this->bodyVelocity = msg->data;
+		this->body_velocity = msg->data;
+	}
+
+    void velocityAngleCB(const std_msgs::Float64ConstPtr& msg)
+	{
+		this->velocity_angle = msg->data;
 	}
 
     void stopCommandCB(const std_msgs::BoolConstPtr& msg)
@@ -178,117 +214,120 @@ private:
 	hexapod_control::GaitResult actionResult;
 	ros::Subscriber dutyFactorSubscriber;
 	ros::Subscriber bodyVelocitySubscriber;
+	ros::Subscriber velocityAngleSubscriber;
     ros::Subscriber stopCommandSubscriber;
 	hexapod_control::Pose current_pose;
-	double initial_phase;
-	double current_phase;
-	double stride_time;
-	double stride_height;
-	double dutyFactor;
-	double bodyVelocity;
-    double xOffset = -0.08232;
-    double yOffset = -0.14258;
-    double zOffset = -0.03928;
+    std::string gait_mode;
+	double initial_phase, current_phase, stride_time, stride_height;
+	double duty_factor, body_velocity, velocity_angle;
+    hexapod_control::Pose center;
+    double base_radius, base_height, foot_radius, hip_angle;
     int steps = 0;
     bool stop = false;
     bool initialized = false;
     std::string stage;
 
-    geometry_msgs::Point InitialTrajectory(double elapsed)
+    geometry_msgs::Point InitialWalk(double elapsed)
     {
         // Position w.r.t. body
-        geometry_msgs::Point position;
-        double x, y, z;
+        geometry_msgs::Point pos;
+        double offset = body_velocity*elapsed;
 
         // Just move forward until reach initial phase
-        x = xOffset - bodyVelocity * elapsed;
-        y = yOffset;
-        z = zOffset;
+        pos.x = center.x - offset*cos(velocity_angle);
+        pos.y = center.y - offset*sin(velocity_angle);
+        pos.z = center.z;
         stage = "Initialization";
 
-        position.x = x;
-        position.y = y;
-        position.z = z;
-
-        return position;
+        return pos;
     }
 
-    geometry_msgs::Point SineTrajectory(double phase)
+    geometry_msgs::Point Walk(double phase)
     {
         // Position w.r.t. body
-        geometry_msgs::Point position;
-        double x, y, z;
-
-        double strideLength = stride_time * bodyVelocity;
+        geometry_msgs::Point pos;
+        double stride_length = stride_time*body_velocity;
 
         // Support phase
-        if (phase < dutyFactor)
+        if (phase < duty_factor)
         {
-            double supportPhase = phase / dutyFactor;
-            x = xOffset;
-            y = yOffset + (strideLength / 2 - strideLength * supportPhase);
-            z = zOffset;
+            double support_phase = phase/duty_factor;
+            double offset = stride_length*(support_phase - 1/2);
+            pos.x = center.x - offset*cos(velocity_angle);
+            pos.y = center.y - offset*sin(velocity_angle);
+            pos.z = center.z;
             stage = "Support Phase";
         }
         // Transfer phase
         else
         {
-            double transferPhase = (phase - dutyFactor) / (1.0 - dutyFactor);
-            x = xOffset;
-            y = yOffset + (strideLength * transferPhase - strideLength / 2);
-            z = 0.5 * stride_height * cos(2 * M_PI * transferPhase - M_PI) + zOffset + stride_height/2;
+            double transfer_phase = (phase - duty_factor)/(1.0 - duty_factor);
+            double offset = stride_length*(transfer_phase - 1/2);
+            pos.x = center.x + offset*cos(velocity_angle);
+            pos.y = center.y + offset*sin(velocity_angle);
+            pos.z = center.z + stride_height*sin(M_PI*transfer_phase);
             stage = "Transfer Phase";
         }
         
-        position.x = x;
-        position.y = y;
-        position.z = z;
-
-        return position;
+        return pos;
     }
 
-    geometry_msgs::Point RotateInPlace(double phase)
+    geometry_msgs::Point InitialRotate(double elapsed)
     {
         // Position w.r.t. body
-        geometry_msgs::Point position;
-        double x, y, z;
+        geometry_msgs::Point pos;
+        double offset = hip_angle + body_velocity*elapsed;
 
-        double strideLength = stride_time * bodyVelocity;
+        // Just move forward until reach initial phase
+        pos.x = center.x - foot_radius*cos(offset);
+        pos.y = center.y - foot_radius*sin(offset);
+        pos.z = center.z;
+        stage = "Initialization";
+
+        return pos;
+    }
+
+    geometry_msgs::Point Rotate(double phase)
+    {
+        // Position w.r.t. body
+        geometry_msgs::Point pos;
+        double stride_length = stride_time*body_velocity;
+        double theta = acos(1 - 1/8*pow(stride_length/foot_radius, 2));
+
+        //TODO: Confirm polarity of support and transfer phases
 
         // Support phase
-        if (phase < dutyFactor)
+        if (phase < duty_factor)
         {
-            double supportPhase = phase / dutyFactor;
-            x = xOffset - cos(30 * M_PI / 180) * (strideLength / 2 - strideLength * supportPhase);
-            y = yOffset - sin(30 * M_PI / 180) * (strideLength / 2 - strideLength * supportPhase);
-            z = zOffset;
+            double support_phase = phase/duty_factor;
+            double foot_angle = hip_angle + theta*(2*support_phase - 1);
+            pos.x = center.x - foot_radius*cos(foot_angle);
+            pos.y = center.y - foot_radius*sin(foot_angle);
+            pos.z = center.z;
             stage = "Support Phase";
         }
         // Transfer phase
         else
         {
-            double transferPhase = (phase - dutyFactor) / (1.0 - dutyFactor);
-            x = xOffset - cos(30 * M_PI / 180) * (strideLength * transferPhase - strideLength / 2);
-            y = yOffset - sin(30 * M_PI / 180) * (strideLength * transferPhase - strideLength / 2);
-            z = 0.5 * stride_height * cos(2 * M_PI * transferPhase - M_PI) + zOffset + stride_height/2;
+            double transfer_phase = (phase - duty_factor)/(1.0 - duty_factor);
+            double foot_angle = hip_angle + theta*(2*transfer_phase - 1);
+            pos.x = center.x + foot_radius*cos(foot_angle);
+            pos.y = center.y + foot_radius*sin(foot_angle);
+            pos.z = center.z + stride_height*sin(M_PI*transfer_phase);
             stage = "Transfer Phase";
         }
         
-        position.x = x;
-        position.y = y;
-        position.z = z;
-
-        return position;
+        return pos;
     }
 };
 
 int main(int argc, char **argv)
 {
     ROS_INFO("Starting Trajectory Action Server...");
-    ros::init(argc, argv, "leg_L3_trajectory_action");
+    ros::init(argc, argv, "leg_" + leg_name + "_trajectory_action");
     ROS_INFO("Initialized ros...");
 
-    SetTrajectoryAction actionServer("leg_L3_trajectory_action");
+    SetTrajectoryAction actionServer("leg_" + leg_name + "_trajectory_action");
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;
