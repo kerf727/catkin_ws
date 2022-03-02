@@ -1,8 +1,5 @@
 # Define the goal
 string gait_mode
-float64 initial_phase
-float64 stride_time
-float64 stride_height
 ---
 # Define the result
 int32 steps_taken

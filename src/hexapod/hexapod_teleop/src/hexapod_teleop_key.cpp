@@ -55,7 +55,7 @@ public:
         hex_pos_scale = 1.0;
         hex_rot_scale = 1.0;
 
-        ROS_INFO("Waiting for IK Servers...");
+        ROS_INFO("Waiting for Gait Controller...");
         client.waitForServer(ros::Duration(30));
         // L1_client.waitForServer(ros::Duration(30));
         // R1_client.waitForServer(ros::Duration(30));

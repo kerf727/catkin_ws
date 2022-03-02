@@ -6,4 +6,10 @@ walking:
   duty_factor: 0.667
   stride_time: 1.0
   stride_height: 0.02
-  relative_phase: [0.333, 0, 0.667, 0.333, 0, 0.667] # L1, R1, L2, R2, L3, R3
+  relative_phase:
+    leg_L1: 0.333
+    leg_R1: 0.000
+    leg_L2: 0.667
+    leg_R2: 0.333
+    leg_L3: 0.000
+    leg_R3: 0.667

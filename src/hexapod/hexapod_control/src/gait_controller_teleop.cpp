@@ -59,8 +59,8 @@ public:
     {
         // Extract goal
         this->gait_mode = goal->gait_mode;
-        this->base_twist  = goal->base_twist;
-        this->hex_pos  = goal->hex_pos;
+        this->base_twist = goal->base_twist;
+        this->hex_pos = goal->hex_pos;
         this->hex_heading = goal->hex_heading;
         this->hex_rot = goal->hex_rot;
         ROS_INFO("Gait Controller goal received.");
@@ -74,7 +74,7 @@ public:
 
         // Calculate gait parameters
         int numSteps;
-        double lin_vel, lin_acc, ang_vel, ang_acc, stride_time, stride_height, duty_ratio;
+        double lin_vel, lin_acc, ang_vel, ang_acc, duty_ratio;
         std::vector<double> relative_phases;
 
         // TODO: Add other gait types than walking
@@ -83,10 +83,7 @@ public:
         node.getParam("/hexapod/gait/walking/linear_acceleration", lin_acc);
         node.getParam("/hexapod/gait/walking/angular_velocity", ang_vel);
         node.getParam("/hexapod/gait/walking/angular_acceleration", ang_acc);
-        node.getParam("/hexapod/gait/walking/duty_factor", duty_ratio);
-        node.getParam("/hexapod/gait/walking/relative_phase", relative_phases);
-        node.getParam("/hexapod/gait/walking/stride_time", stride_time);
-        node.getParam("/hexapod/gait/walking/stride_height", stride_height);
+        node.getParam("/hexapod/gait/walking/duty_factor", duty_ratio);        
 
         // Get initial position
         geometry_msgs::Point initial_pos = GetPosition();
@@ -104,51 +101,11 @@ public:
         msg.data = velocity;
         this->bodyVelocityPublisher.publish(msg);
 
-        msg.data = hex_heading;
+        msg.data = hex_heading*M_PI/180;
         this->velocityAnglePublisher.publish(msg);
 
         std_msgs::Bool stopCommand;
         stopCommand.data = true;
-
-        // Send goals to trajectory servers
-        ROS_INFO("Initializing leg trajectories...");
-
-        hexapod_control::GaitGoal gaitAction;
-        gaitAction.gait_mode = gait_mode;
-        gaitAction.stride_time = stride_time;
-        gaitAction.stride_height = stride_height;
-        ROS_INFO("test: %s", gait_mode.c_str());
-
-        gaitAction.initial_phase = relative_phases[0];
-        this->L1_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::L1Result, this, _1, _2),
-            boost::bind(&GaitController::L1Active, this),
-            boost::bind(&GaitController::L1Feedback, this, _1));
-        gaitAction.initial_phase = relative_phases[1];
-        this->R1_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::R1Result, this, _1, _2),
-            boost::bind(&GaitController::R1Active, this),
-            boost::bind(&GaitController::R1Feedback, this, _1));
-        gaitAction.initial_phase = relative_phases[2];
-        this->L2_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::L2Result, this, _1, _2),
-            boost::bind(&GaitController::L2Active, this),
-            boost::bind(&GaitController::L2Feedback, this, _1));
-        gaitAction.initial_phase = relative_phases[3];
-        this->R2_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::R2Result, this, _1, _2),
-            boost::bind(&GaitController::R2Active, this),
-            boost::bind(&GaitController::R2Feedback, this, _1));
-        gaitAction.initial_phase = relative_phases[4];
-        this->L3_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::L3Result, this, _1, _2),
-            boost::bind(&GaitController::L3Active, this),
-            boost::bind(&GaitController::L3Feedback, this, _1));
-        gaitAction.initial_phase = relative_phases[5];
-        this->R3_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::R3Result, this, _1, _2),
-            boost::bind(&GaitController::R3Active, this),
-            boost::bind(&GaitController::R3Feedback, this, _1));   
 
         // Start gait loop
         ROS_INFO("Starting gait...");
@@ -331,12 +288,42 @@ public:
             }
             else if (gait_mode == "Stationary/Position")
             {
-                // TODO: Add Stationary/... options to combine with AIK code
+                // TODO: Add AIK code
             }
             else if (gait_mode == "Stationary/Orientation")
             {
-                // TODO: Add Stationary/... options to combine with AIK code
+                // TODO: Add AIK code
             }
+
+            // Send goals to trajectory servers
+            ROS_INFO("Initializing leg trajectories...");
+            hexapod_control::GaitGoal gaitAction;
+            gaitAction.gait_mode = gait_mode;
+            // TODO: include more parameters in goal instead of publishing body_velocity etc above?
+            this->L1_client.sendGoal(gaitAction,
+                boost::bind(&GaitController::L1Result, this, _1, _2),
+                boost::bind(&GaitController::L1Active, this),
+                boost::bind(&GaitController::L1Feedback, this, _1));
+            this->R1_client.sendGoal(gaitAction,
+                boost::bind(&GaitController::R1Result, this, _1, _2),
+                boost::bind(&GaitController::R1Active, this),
+                boost::bind(&GaitController::R1Feedback, this, _1));
+            this->L2_client.sendGoal(gaitAction,
+                boost::bind(&GaitController::L2Result, this, _1, _2),
+                boost::bind(&GaitController::L2Active, this),
+                boost::bind(&GaitController::L2Feedback, this, _1));
+            this->R2_client.sendGoal(gaitAction,
+                boost::bind(&GaitController::R2Result, this, _1, _2),
+                boost::bind(&GaitController::R2Active, this),
+                boost::bind(&GaitController::R2Feedback, this, _1));
+            this->L3_client.sendGoal(gaitAction,
+                boost::bind(&GaitController::L3Result, this, _1, _2),
+                boost::bind(&GaitController::L3Active, this),
+                boost::bind(&GaitController::L3Feedback, this, _1));
+            this->R3_client.sendGoal(gaitAction,
+                boost::bind(&GaitController::R3Result, this, _1, _2),
+                boost::bind(&GaitController::R3Active, this),
+                boost::bind(&GaitController::R3Feedback, this, _1));
             
             // Publish feedback
             this->actionFeedback.distance = traveled;

@@ -47,9 +47,6 @@ public:
 		double start = ros::Time::now().toSec();
 
 		this->gait_mode = goal->gait_mode;
-		this->initial_phase = goal->initial_phase;
-		this->stride_time = goal->stride_time;
-		this->stride_height = goal->stride_height;
 		double eps = 0.05;
 		
 		int state = 0;
@@ -59,8 +56,13 @@ public:
 
 		double t, elapsed;
 		steps = 0;
-		current_phase = initial_phase;
 		hexapod_control::Pose target_pose;
+
+        node.getParam("/hexapod/gait/walking/stride_time", stride_time);
+        node.getParam("/hexapod/gait/walking/stride_height", stride_height);
+        node.getParam("/hexapod/gait/walking/relative_phase/leg_" + leg_name, initial_phase);
+
+		current_phase = initial_phase;
 
         node.getParam("/hexapod/geometry/base/radius", base_radius);
         node.getParam("/hexapod/geometry/base/height", base_height);
@@ -133,7 +135,7 @@ public:
 			target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
 			target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
 
-			// Send parameters to pose action client
+			// Send goal to pose action client
 			hexapod_control::SetPoseGoal poseAction;
 			poseAction.goal = target_pose;
 			poseAction.eps = eps;
@@ -142,10 +144,11 @@ public:
 				boost::bind(&SetTrajectoryAction::activeCB, this),
 				boost::bind(&SetTrajectoryAction::publishFeedback, this, _1));
 
+            // Publish feedback
 			this->actionFeedback.current_phase = current_phase;
-			this->actionFeedback.target_pose = target_pose;
-			this->actionFeedback.current_pose = current_pose;
             this->actionFeedback.stage = stage;
+			this->actionFeedback.current_pose = current_pose;
+			this->actionFeedback.target_pose = target_pose;
 			server.publishFeedback(this->actionFeedback);
 
             if (current_phase == initial_phase)
