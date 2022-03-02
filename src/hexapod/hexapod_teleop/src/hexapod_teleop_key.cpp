@@ -2,31 +2,37 @@
 #include "actionlib/client/simple_action_client.h"
 #include "hexapod_teleop/TeleopAction.h"
 #include "geometry_msgs/Twist.h"
+#include "geometry_msgs/Vector3.h"
 #include "signal.h"
 #include "termios.h"
 #include "stdio.h"
 
-#define KEYCODE_RIGHT 0x43 
-#define KEYCODE_LEFT 0x44
 #define KEYCODE_UP 0x41
 #define KEYCODE_DOWN 0x42
+#define KEYCODE_LEFT 0x44
+#define KEYCODE_RIGHT 0x43 
+#define KEYCODE_W 0x77
+#define KEYCODE_A 0x61
+#define KEYCODE_S 0x73
+#define KEYCODE_D 0x64
 #define KEYCODE_Q 0x71
-// #define KEYCODE_R 0x64
-// #define KEYCODE_L 0x61
-// #define KEYCODE_U 0x77
-#define KEYCODE_D 0x73
+#define KEYCODE_SPACE 0x20
 
 class TeleopHexapod
 {
 public:
-    TeleopHexapod(std::string name) : L1_client("leg_L1_AIK_action", true),
-                                      R1_client("leg_R1_AIK_action", true),
-                                      L2_client("leg_L2_AIK_action", true),
-                                      R2_client("leg_R2_AIK_action", true),
-                                      L3_client("leg_L3_AIK_action", true),
-                                      R3_client("leg_R3_AIK_action", true),
-                                      actionName(name)
+    TeleopHexapod(std::string name) :
+        client("gait_controller", true),
+        // L1_client("leg_L1_AIK_action", true),
+        // R1_client("leg_R1_AIK_action", true),
+        // L2_client("leg_L2_AIK_action", true),
+        // R2_client("leg_R2_AIK_action", true),
+        // L3_client("leg_L3_AIK_action", true),
+        // R3_client("leg_R3_AIK_action", true),
+        actionName(name)
     {
+        input_mode = "Stationary";
+        
         base_pos.x = 0.0;
         base_pos.y = 0.0;
         base_pos.z = 0.0;
@@ -35,34 +41,28 @@ public:
         base_rot.z = 0.0;
 
         // update this to hexapod's current location?
-        hex_pos.x = 0.0;
-        hex_pos.y = 0.0;
-        hex_pos.z = 0.05; // figure out what this should be for default height
+        hex_pos = 0.0;
+        hex_heading = 0.0;
         hex_rot = 0.0;
+
+        base_pos_delta = 0.02;
+        base_rot_delta = 15 * M_PI / 180;
+        hex_pos_delta = 0.04;
+        hex_rot_delta = 10 * M_PI / 180;
 
         base_pos_scale = 1.0;
         base_rot_scale = 1.0;
         hex_pos_scale = 1.0;
         hex_rot_scale = 1.0;
 
-        base_pos_shift = 0.02;
-        base_rot_deg = 15; // degrees
-        hex_pos_delta = 0.04;
-        hex_rot_delta = 10; // degrees
-
-        movement_mode = "Stationary";
-        stationary_mode = "Stationary/Position";
-
-        // node.param("scale_pos", base_pos.scale, base_pos.scale);
-        // node.param("scale_rot", base_rot.scale, base_rot.scale);
-
         ROS_INFO("Waiting for IK Servers...");
-        L1_client.waitForServer(ros::Duration(30));
-        R1_client.waitForServer(ros::Duration(30));
-        L2_client.waitForServer(ros::Duration(30));
-        R2_client.waitForServer(ros::Duration(30));
-        L3_client.waitForServer(ros::Duration(30));
-        R3_client.waitForServer(ros::Duration(30));
+        client.waitForServer(ros::Duration(30));
+        // L1_client.waitForServer(ros::Duration(30));
+        // R1_client.waitForServer(ros::Duration(30));
+        // L2_client.waitForServer(ros::Duration(30));
+        // R2_client.waitForServer(ros::Duration(30));
+        // L3_client.waitForServer(ros::Duration(30));
+        // R3_client.waitForServer(ros::Duration(30));
 
         ROS_INFO("Teleop controller ready.");
     }
@@ -99,121 +99,139 @@ public:
 
             switch(c)
             {
-                case KEYCODE_LEFT:
-                    ROS_INFO("LEFT");
-                    if (movement_mode == "Stationary")
+                case KEYCODE_W:
+                    ROS_INFO("W");
+                    if (input_mode == "Stationary")
                     {
-                        if (stationary_mode == "Stationary/Position")
-                        {
-                            base_pos.x = -base_pos_shift;
-                            base_pos.y = 0.0;
-                        }
-                        else if (stationary_mode == "Stationary/Orientation")
-                        {
-                            base_rot.y = -base_rot_deg*M_PI/180;
-                        }
+                        base_pos.x = 0.0;
+                        base_pos.y = base_pos_delta;
+                        gait_mode = "Stationary/Position";
                     }
-                    else if (movement_mode == "Moving")
+                    else if (input_mode == "Moving")
                     {
-                        hex_pos.x -= hex_pos_delta;
+                        hex_pos = hex_pos_delta;
+                        hex_heading = 90;
+                        gait_mode = "Moving/Position";
                     }
-
                     dirty = true;
                     break;
-
-                case KEYCODE_RIGHT:
-                    ROS_INFO("RIGHT");
-                    if (movement_mode == "Stationary")
+                
+                case KEYCODE_A:
+                    ROS_INFO("A");
+                    if (input_mode == "Stationary")
                     {
-                        if (stationary_mode == "Stationary/Position")
-                        {
-                            base_pos.x = base_pos_shift;
-                            base_pos.y = 0.0;
-                        }
-                        else if (stationary_mode == "Stationary/Orientation")
-                        {
-                            base_rot.y = base_rot_deg*M_PI/180;
-                        }
+                        base_pos.x = -base_pos_delta;
+                        base_pos.y = 0.0;
+                        gait_mode = "Stationary/Position";
                     }
-                    else if (movement_mode == "Moving")
+                    else if (input_mode == "Moving")
                     {
-                        hex_pos.x += hex_pos_delta;
+                        hex_pos = hex_pos_delta;
+                        hex_heading = 180;
+                        gait_mode = "Moving/Position";
                     }
-
                     dirty = true;
                     break;
-
-                case KEYCODE_UP:
-                    ROS_INFO("UP");
-                    if (movement_mode == "Stationary")
+                
+                case KEYCODE_S:
+                    ROS_INFO("S");
+                    if (input_mode == "Stationary")
                     {
-                        if (stationary_mode == "Stationary/Position")
-                        {
-                            base_pos.x = 0.0;
-                            base_pos.y = base_pos_shift;
-                        }
-                        else if (stationary_mode == "Stationary/Orientation")
-                        {
-                            base_rot.x = -base_rot_deg*M_PI/180;
-                        }
+                        base_pos.x = 0.0;
+                        base_pos.y = -base_pos_delta;
+                        gait_mode = "Stationary/Position";
                     }
-                    else if (movement_mode == "Moving")
+                    else if (input_mode == "Moving")
                     {
-                        hex_pos.y += hex_pos_delta;
+                        hex_pos = hex_pos_delta;
+                        hex_heading = 270;
+                        gait_mode = "Moving/Position";
                     }
-
-                    dirty = true;
-                    break;
-
-                case KEYCODE_DOWN:
-                    ROS_INFO("DOWN");
-                    if (movement_mode == "Stationary")
-                    {
-                        if (stationary_mode == "Stationary/Position")
-                        {
-                            base_pos.x = 0.0;
-                            base_pos.y = -base_pos_shift;
-                        }
-                        else if (stationary_mode == "Stationary/Orientation")
-                        {
-                            base_rot.x = base_rot_deg*M_PI/180;
-                        }
-                    }
-                    else if (movement_mode == "Moving")
-                    {
-                        hex_pos.y -= hex_pos_delta;
-                    }
-
-                    dirty = true;
-                    break;
-
-                case KEYCODE_Q:
-                    ROS_INFO("Q");
-                    // Switch between Stationary Position and Stationary Orientation modes
-                    if (stationary_mode == "Stationary/Position")
-                    {
-                        stationary_mode = "Stationary/Orientation";
-                    }
-                    else if (stationary_mode == "Stationary/Orientation")
-                    {
-                        stationary_mode = "Stationary/Position";
-                    }
-
                     dirty = true;
                     break;
 
                 case KEYCODE_D:
                     ROS_INFO("D");
-                    // Switch between Stationary and Moving modes
-                    if (movement_mode == "Stationary")
+                    if (input_mode == "Stationary")
                     {
-                        movement_mode = "Moving";
+                        base_pos.x = base_pos_delta;
+                        base_pos.y = 0.0;
+                        gait_mode = "Stationary/Position";
                     }
-                    else if (movement_mode == "Moving")
+                    else if (input_mode == "Moving")
                     {
-                        movement_mode = "Stationary";
+                        hex_pos = hex_pos_delta;
+                        hex_heading = 0;
+                        gait_mode = "Moving/Position";
                     }
+                    dirty = true;
+                    break;
 
+                case KEYCODE_UP:
+                    ROS_INFO("UP");
+                    if (input_mode == "Stationary")
+                    {
+                        base_rot.x = -base_rot_delta;
+                        base_rot.y = 0.0;
+                        gait_mode = "Stationary/Orientation";
+                    }
+                    dirty = true;
+                    break;
+
+                case KEYCODE_DOWN:
+                    ROS_INFO("DOWN");
+                    if (input_mode == "Stationary")
+                    {
+                        base_rot.x = base_rot_delta;
+                        base_rot.y = 0.0;
+                        gait_mode = "Stationary/Orientation";
+                    }
+                    dirty = true;
+                    break;
+                    
+                case KEYCODE_LEFT:
+                    ROS_INFO("LEFT");
+                    if (input_mode == "Stationary")
+                    {
+                        base_rot.x = 0.0;
+                        base_rot.y = -base_rot_delta;
+                        gait_mode = "Stationary/Orientation";
+                    }
+                    else if (input_mode == "Moving")
+                    {
+                        hex_rot = -hex_rot_delta;
+                        gait_mode = "Moving/Orientation";
+                    }
+                    dirty = true;
+                    break;
+
+                case KEYCODE_RIGHT:
+                    ROS_INFO("RIGHT");
+                    if (input_mode == "Stationary")
+                    {
+                        base_rot.x = 0.0;
+                        base_rot.y = base_rot_delta;
+                        gait_mode = "Stationary/Orientation";
+                    }
+                    else if (input_mode == "Moving")
+                    {
+                        hex_rot = hex_rot_delta;
+                        gait_mode = "Moving/Orientation";
+                    }
+                    dirty = true;
+                    break;
+
+                case KEYCODE_SPACE:
+                    ROS_INFO("SPACE");
+                    // Switch between Stationary and Moving modes
+                    if (input_mode == "Moving")
+                    {
+                        input_mode = "Stationary";
+                    }
+                    else if (input_mode == "Stationary")
+                    {
+                        input_mode = "Moving";
+                    }
                     dirty = true;
                     break;
             }
@@ -225,25 +243,25 @@ public:
             base_twist.angular.x = base_rot_scale*base_rot.x;
             base_twist.angular.y = base_rot_scale*base_rot.y;
             base_twist.angular.z = base_rot_scale*base_rot.z;
-
-            geometry_msgs::Twist hex_twist;
-            hex_twist.linear.x  = hex_pos_scale*hex_pos.x;
-            hex_twist.linear.y  = hex_pos_scale*hex_pos.y;
-            hex_twist.linear.z  = hex_pos_scale*hex_pos.z;
-            hex_twist.angular.z = hex_rot_scale*hex_rot;
+            hex_pos = hex_pos_scale*hex_pos;
+            //TODO: Consider removing scaling step
             
             if(dirty == true)
             {
                 hexapod_teleop::TeleopGoal goal;
-                goal.movement_mode = movement_mode; // Stationary or Moving
+                goal.gait_mode = gait_mode;
                 goal.base_twist = base_twist;
-                goal.hex_twist = hex_twist;
-                L1_client.sendGoal(goal);
-                R1_client.sendGoal(goal);
-                L2_client.sendGoal(goal);
-                R2_client.sendGoal(goal);
-                L3_client.sendGoal(goal);
-                R3_client.sendGoal(goal);
+                goal.hex_pos = hex_pos;
+                goal.hex_heading = hex_heading;
+                goal.hex_rot = hex_rot;
+
+                client.sendGoal(goal);
+                // L1_client.sendGoal(goal);
+                // R1_client.sendGoal(goal);
+                // L2_client.sendGoal(goal);
+                // R2_client.sendGoal(goal);
+                // L3_client.sendGoal(goal);
+                // R3_client.sendGoal(goal);
 
                 dirty = false;
             }
@@ -252,46 +270,21 @@ public:
         return;
     }
 
-    struct Vector3
-    {
-        double x, y, z;
-
-        Vector3() :
-            x(0.0), y(0.0), z(0.0) {}
-
-        Vector3(double x, double y, double z) :
-            x(x), y(y), z(z) {}
-
-        Vector3 operator+(const Vector3& other)
-        {
-            return Vector3(x + other.x, y + other.y, z + other.z);
-        }
-
-        Vector3 operator-(const Vector3& other)
-        {
-            return Vector3(x - other.x, y - other.y, z - other.z);
-        }
-
-        double norm()
-        {
-            return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
-        }
-    };
-
 private:
     std::string actionName;
     // ros::NodeHandle node;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L1_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R1_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L2_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R2_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L3_client;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R3_client;
+    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> client;
+    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L1_client;
+    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R1_client;
+    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L2_client;
+    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R2_client;
+    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L3_client;
+    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R3_client;
+    std::string input_mode, gait_mode;
+    geometry_msgs::Vector3 base_pos, base_rot;
+    double hex_pos, hex_heading, hex_rot;
+    double base_pos_delta, base_rot_delta, hex_pos_delta, hex_rot_delta;
     double base_pos_scale, base_rot_scale, hex_pos_scale, hex_rot_scale;
-    Vector3 base_pos, base_rot, hex_pos;
-    double hex_rot;
-    std::string movement_mode, stationary_mode;
-    double base_pos_shift, base_rot_deg, hex_pos_delta, hex_rot_delta;
 };
 
 int kfd = 0;
@@ -312,7 +305,7 @@ int main(int argc, char** argv)
     ROS_INFO("Initialized ros...");
 
     ROS_INFO("IK Servers started, initializing client...");
-    TeleopHexapod teleop_hexapod("teleop_controller");
+    TeleopHexapod teleop_hexapod("teleop_hexapod");
     signal(SIGINT, quit);
     
     ROS_INFO("Sending teleop goal...");
