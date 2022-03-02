@@ -1,10 +1,16 @@
 # Define the goal
-string movement_mode
+string gait_mode
 geometry_msgs/Twist base_twist
-geometry_msgs/Twist hex_twist
+float64 hex_pos
+float64 hex_heading
+float64 hex_rot
 ---
 # Define the result
+float64 distance
 float64 time
 ---
 # Define the feedback message
+int32 stage
+string description
+float64 distance
 float64 time

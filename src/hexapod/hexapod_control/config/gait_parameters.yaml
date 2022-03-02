@@ -1,6 +1,8 @@
 walking:
-  velocity: 0.04
-  acceleration: 0.02
+  linear_velocity: 0.04
+  linear_acceleration: 0.02
+  angular_velocity: 0.02 # TODO: edit this value
+  angular_acceleration: 0.01 # TODO: edit this value
   duty_factor: 0.667
   stride_time: 1.0
   stride_height: 0.02
