@@ -4,15 +4,16 @@ ripple:
   angular_velocity: 0.02 # TODO: edit this value
   angular_acceleration: 0.01 # TODO: edit this value
   duty_factor: 0.667
-  stride_time: 1.0
+  stride_time: 2.0
   stride_height: 0.02
-  relative_phase:
-    leg_L1: 0.333
-    leg_L2: 0.667
-    leg_L3: 0.000
-    leg_R1: 0.000
-    leg_R2: 0.333
-    leg_R3: 0.667
+  stride_length: 0.02
+  phase:
+    L1: 0.333
+    L2: 0.667
+    L3: 0.000
+    R1: 0.000
+    R2: 0.333
+    R3: 0.667
 
 tripod:
   linear_velocity: 0.02
@@ -22,13 +23,14 @@ tripod:
   duty_factor: 0.5
   stride_time: 1.0
   stride_height: 0.02
-  relative_phase:
-    leg_L1: 0.5
-    leg_L2: 0.0
-    leg_L3: 0.5
-    leg_R1: 0.0
-    leg_R2: 0.5
-    leg_R3: 0.0
+  stride_length: 0.02
+  phase:
+    L1: 0.5
+    L2: 0.0
+    L3: 0.5
+    R1: 0.0
+    R2: 0.5
+    R3: 0.0
 
 wave:
   linear_velocity: 0.02
@@ -38,10 +40,11 @@ wave:
   duty_factor: 0.833
   stride_time: 1.0
   stride_height: 0.02
-  relative_phase:
-    leg_L1: 0.0
-    leg_L2: 0.833
-    leg_L3: 0.667
-    leg_R1: 0.5
-    leg_R2: 0.333
-    leg_R3: 0.167
+  stride_length: 0.02
+  phase:
+    L1: 0.0
+    L2: 0.833
+    L3: 0.667
+    R1: 0.5
+    R2: 0.333
+    R3: 0.167

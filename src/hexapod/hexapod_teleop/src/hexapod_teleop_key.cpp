@@ -51,7 +51,7 @@ public:
         hex_pos_delta = 0.04;
         hex_rot_delta = 10 * M_PI / 180;
 
-        ROS_INFO("Teleop controller ready.");
+        ROS_INFO("Teleop controller ready.\n");
     }
 
     void keyLoop(int kfd, struct termios cooked, struct termios raw)
@@ -186,7 +186,7 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_rot = -hex_rot_delta;
+                        hex_rot = hex_rot_delta;
                         gait_mode = "Moving/Orientation";
                     }
                     dirty = true;
@@ -202,7 +202,7 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_rot = hex_rot_delta;
+                        hex_rot = -hex_rot_delta;
                         gait_mode = "Moving/Orientation";
                     }
                     dirty = true;
@@ -233,10 +233,6 @@ public:
             
             if(dirty == true)
             {
-                std_msgs::String gaitModeMsg;
-                gaitModeMsg.data = gait_mode;
-                gaitModePublisher.publish(gaitModeMsg);
-                
                 geometry_msgs::Twist baseTwistMsg;
                 baseTwistMsg.linear = base_twist.linear;
                 baseTwistMsg.angular = base_twist.angular;
@@ -253,6 +249,12 @@ public:
                 std_msgs::Float64 hexRotMsg;
                 hexRotMsg.data = hex_rot;
                 hexRotPublisher.publish(hexRotMsg);
+
+                // Gait Controller callback triggered when gait_mode topic received
+                // Publish this last so other variables are updated first
+                std_msgs::String gaitModeMsg;
+                gaitModeMsg.data = gait_mode;
+                gaitModePublisher.publish(gaitModeMsg);
 
                 dirty = false;
             }
