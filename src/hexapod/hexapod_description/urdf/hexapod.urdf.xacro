@@ -214,12 +214,12 @@
 
     <!-- ========================== Generate URDF ========================== -->
 
-    <!-- <link name="world"/>
-        <joint name="fixed_joint" type="fixed">
-            <origin xyz="0 0 0.3" rpy="0 0 0"/>
-            <parent link="world"/>
-            <child link="dummy_link"/>
-        </joint> -->
+    <link name="world"/>
+    <joint name="fixed_joint" type="fixed">
+        <origin xyz="0 0 0.3" rpy="0 0 0"/>
+        <parent link="world"/>
+        <child link="dummy_link"/>
+    </joint>
 
     <!-- Dummy Link and Joint avoids "KDL does not support a root link with an inertia" error -->
     <link name="dummy_link"/>

@@ -6,7 +6,6 @@
 #include "std_msgs/Float64.h"
 #include "std_msgs/Bool.h"
 #include "geometry_msgs/Pose.h"
-#include "gazebo_msgs/GetLinkState.h"
 #include "math.h"
 
 std::string leg_name = "R2";
@@ -24,14 +23,12 @@ public:
         ROS_INFO("Waiting for Pose State Server...");
         this->client.waitForServer(ros::Duration(30));
 
-		ROS_INFO("Subscribing to Gait Controller...");
-		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
+		ROS_INFO("Subscribing to Gait Controller and Teleop...");
 		this->bodyVelocitySubscriber = node.subscribe("/hexapod/gait/body_velocity", 10, &SetTrajectoryAction::bodyVelocityCB, this);
-		this->velocityAngleSubscriber = node.subscribe("/hexapod/gait/velocity_angle", 10, &SetTrajectoryAction::velocityAngleCB, this);
-
-        ROS_INFO("Subscribing to Gazebo GetLinkState service");
-        this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
+		this->strideTimeSubscriber = node.subscribe("/hexapod/gait/stride_time", 10, &SetTrajectoryAction::strideTimeCB, this);
+		this->strideHeightSubscriber = node.subscribe("/hexapod/gait/stride_height", 10, &SetTrajectoryAction::strideHeightCB, this);
         this->stopCommandSubscriber = node.subscribe("/hexapod/gait/stop", 10, &SetTrajectoryAction::stopCommandCB, this);
+		this->hexHeadingSubscriber = node.subscribe("/hexapod/gait/hex_heading", 10, &SetTrajectoryAction::hexHeadingCB, this);
 		
 		ROS_INFO("Starting...");
 		server.start();
@@ -47,6 +44,8 @@ public:
 		double start = ros::Time::now().toSec();
 
 		this->gait_mode = goal->gait_mode;
+		this->duty_factor = goal->duty_factor;
+		this->initial_phase = goal->initial_phase;
 		double eps = 0.05;
 		
 		int state = 0;
@@ -57,10 +56,6 @@ public:
 		double t, elapsed;
 		steps = 0;
 		hexapod_control::Pose target_pose;
-
-        node.getParam("/hexapod/gait/walking/stride_time", stride_time);
-        node.getParam("/hexapod/gait/walking/stride_height", stride_height);
-        node.getParam("/hexapod/gait/walking/relative_phase/leg_" + leg_name, initial_phase);
 
 		current_phase = initial_phase;
 
@@ -99,15 +94,15 @@ public:
             geometry_msgs::Point pos;
             if (!initialized && gait_mode == "Moving/Position")
             {
-                pos = InitialWalk(current_phase);
+                pos = InitialWalk(elapsed);
             }
             else if (initialized && gait_mode == "Moving/Position")
             {
-                pos = Walk(elapsed);
+                pos = Walk(current_phase);
             }
             else if (!initialized && gait_mode == "Moving/Orientation")
             {
-                pos = InitialRotate(current_phase);
+                pos = InitialRotate(elapsed);
             }
             else if (initialized && gait_mode == "Moving/Orientation")
             {
@@ -120,6 +115,10 @@ public:
             else if (gait_mode == "Stationary/Orientation")
             {
                 // TODO: Add Stationary/... options to combine with AIK code
+            }
+            else
+            {
+
             }
 
             if ((stop || preempted) && stage.compare("Support Phase") == 0)
@@ -187,19 +186,19 @@ public:
 
 	}
 
-	void dutyFactorCB(const std_msgs::Float64ConstPtr& msg)
-	{
-		this->duty_factor = msg->data;
-	}
-
 	void bodyVelocityCB(const std_msgs::Float64ConstPtr& msg)
 	{
 		this->body_velocity = msg->data;
 	}
 
-    void velocityAngleCB(const std_msgs::Float64ConstPtr& msg)
+    void strideTimeCB(const std_msgs::Float64ConstPtr& msg)
 	{
-		this->velocity_angle = msg->data;
+		this->stride_time = msg->data;
+	}
+
+    void strideHeightCB(const std_msgs::Float64ConstPtr& msg)
+	{
+		this->stride_height = msg->data;
 	}
 
     void stopCommandCB(const std_msgs::BoolConstPtr& msg)
@@ -207,28 +206,10 @@ public:
 		this->stop = msg->data;
 	}
 
-private:
-	std::string actionName;
-	ros::NodeHandle node;
-	actionlib::SimpleActionServer<hexapod_control::GaitAction> server;
-	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client;
-    ros::ServiceClient linkStateClient;
-	hexapod_control::GaitFeedback actionFeedback;
-	hexapod_control::GaitResult actionResult;
-	ros::Subscriber dutyFactorSubscriber;
-	ros::Subscriber bodyVelocitySubscriber;
-	ros::Subscriber velocityAngleSubscriber;
-    ros::Subscriber stopCommandSubscriber;
-	hexapod_control::Pose current_pose;
-    std::string gait_mode;
-	double initial_phase, current_phase, stride_time, stride_height;
-	double duty_factor, body_velocity, velocity_angle;
-    hexapod_control::Pose center;
-    double base_radius, base_height, foot_radius, hip_angle;
-    int steps = 0;
-    bool stop = false;
-    bool initialized = false;
-    std::string stage;
+    void hexHeadingCB(const std_msgs::Float64ConstPtr& msg)
+	{
+		this->hex_heading = msg->data;
+	}
 
     geometry_msgs::Point InitialWalk(double elapsed)
     {
@@ -237,8 +218,8 @@ private:
         double offset = body_velocity*elapsed;
 
         // Just move forward until reach initial phase
-        pos.x = center.x - offset*cos(velocity_angle);
-        pos.y = center.y - offset*sin(velocity_angle);
+        pos.x = center.x - offset*cos(hex_heading);
+        pos.y = center.y - offset*sin(hex_heading);
         pos.z = center.z;
         stage = "Initialization";
 
@@ -255,9 +236,9 @@ private:
         if (phase < duty_factor)
         {
             double support_phase = phase/duty_factor;
-            double offset = stride_length*(support_phase - 1/2);
-            pos.x = center.x - offset*cos(velocity_angle);
-            pos.y = center.y - offset*sin(velocity_angle);
+            double offset = stride_length*(support_phase - 0.5);
+            pos.x = center.x - offset*cos(hex_heading);
+            pos.y = center.y - offset*sin(hex_heading);
             pos.z = center.z;
             stage = "Support Phase";
         }
@@ -265,9 +246,9 @@ private:
         else
         {
             double transfer_phase = (phase - duty_factor)/(1.0 - duty_factor);
-            double offset = stride_length*(transfer_phase - 1/2);
-            pos.x = center.x + offset*cos(velocity_angle);
-            pos.y = center.y + offset*sin(velocity_angle);
+            double offset = stride_length*(transfer_phase - 0.5);
+            pos.x = center.x + offset*cos(hex_heading);
+            pos.y = center.y + offset*sin(hex_heading);
             pos.z = center.z + stride_height*sin(M_PI*transfer_phase);
             stage = "Transfer Phase";
         }
@@ -322,6 +303,29 @@ private:
         
         return pos;
     }
+
+private:
+	std::string actionName;
+	ros::NodeHandle node;
+	actionlib::SimpleActionServer<hexapod_control::GaitAction> server;
+	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client;
+	hexapod_control::GaitFeedback actionFeedback;
+	hexapod_control::GaitResult actionResult;
+	ros::Subscriber bodyVelocitySubscriber;
+	ros::Subscriber strideTimeSubscriber;
+    ros::Subscriber strideHeightSubscriber;
+    ros::Subscriber hexHeadingSubscriber;
+    ros::Subscriber stopCommandSubscriber;
+	hexapod_control::Pose current_pose;
+    std::string gait_mode;
+	double initial_phase, current_phase, stride_time, stride_height;
+	double duty_factor, body_velocity, hex_heading;
+    hexapod_control::Pose center;
+    double base_radius, base_height, foot_radius, hip_angle;
+    int steps = 0;
+    bool stop = false;
+    bool initialized = false;
+    std::string stage;
 };
 
 int main(int argc, char **argv)

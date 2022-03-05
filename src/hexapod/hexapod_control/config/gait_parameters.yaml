@@ -1,6 +1,6 @@
-walking:
-  linear_velocity: 0.04
-  linear_acceleration: 0.02
+ripple:
+  linear_velocity: 0.02
+  linear_acceleration: 0.01
   angular_velocity: 0.02 # TODO: edit this value
   angular_acceleration: 0.01 # TODO: edit this value
   duty_factor: 0.667
@@ -8,8 +8,40 @@ walking:
   stride_height: 0.02
   relative_phase:
     leg_L1: 0.333
-    leg_R1: 0.000
     leg_L2: 0.667
-    leg_R2: 0.333
     leg_L3: 0.000
+    leg_R1: 0.000
+    leg_R2: 0.333
     leg_R3: 0.667
+
+tripod:
+  linear_velocity: 0.02
+  linear_acceleration: 0.01
+  angular_velocity: 0.02 # TODO: edit this value
+  angular_acceleration: 0.01 # TODO: edit this value
+  duty_factor: 0.5
+  stride_time: 1.0
+  stride_height: 0.02
+  relative_phase:
+    leg_L1: 0.5
+    leg_L2: 0.0
+    leg_L3: 0.5
+    leg_R1: 0.0
+    leg_R2: 0.5
+    leg_R3: 0.0
+
+wave:
+  linear_velocity: 0.02
+  linear_acceleration: 0.01
+  angular_velocity: 0.02 # TODO: edit this value
+  angular_acceleration: 0.01 # TODO: edit this value
+  duty_factor: 0.833
+  stride_time: 1.0
+  stride_height: 0.02
+  relative_phase:
+    leg_L1: 0.0
+    leg_L2: 0.833
+    leg_L3: 0.667
+    leg_R1: 0.5
+    leg_R2: 0.333
+    leg_R3: 0.167

@@ -1,9 +1,8 @@
-#include "actionlib/server/simple_action_server.h"
 #include "actionlib/client/simple_action_client.h"
 #include "hexapod_control/GaitAction.h"
 #include "hexapod_control/MoveAction.h"
-#include "hexapod_teleop/TeleopAction.h"
 #include "hexapod_control/Pose.h"
+#include "std_msgs/String.h"
 #include "std_msgs/Float64.h"
 #include "std_msgs/Bool.h"
 #include "gazebo_msgs/GetLinkState.h"
@@ -14,38 +13,48 @@ class GaitController
 {
 public:
     GaitController(std::string name):
-        server(node, name, boost::bind(&GaitController::executeCB, this, _1), false),
-        L1_client("leg_L1_trajectory_action", true),
-        L2_client("leg_L2_trajectory_action", true),
-        L3_client("leg_L3_trajectory_action", true),
-        R1_client("leg_R1_trajectory_action", true),
-        R2_client("leg_R2_trajectory_action", true),
-        R3_client("leg_R3_trajectory_action", true),
-        actionName(name)
+        L1_client("leg_L1_trajectory_action", true)
+        // L2_client("leg_L2_trajectory_action", true),
+        // L3_client("leg_L3_trajectory_action", true),
+        // R1_client("leg_R1_trajectory_action", true),
+        // R2_client("leg_R2_trajectory_action", true),
+        // R3_client("leg_R3_trajectory_action", true)
     {
         this->node = node;
 
-        ROS_INFO("Starting gait parameters publishers...");
-        this->dutyRatioPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/duty_factor", 1);
-        this->bodyVelocityPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/lin_vel", 1);
-        this->velocityAnglePublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/velocity_angle", 1);
+        ROS_INFO("Subscribing to Teleop...");
+		this->gaitModeSubscriber = node.subscribe("/hexapod/gait/gait_mode", 10, &GaitController::gaitModeCB, this);
+		this->baseTwistSubscriber = node.subscribe("/hexapod/gait/base_twist", 10, &GaitController::baseTwistCB, this);
+		this->hexPosSubscriber = node.subscribe("/hexapod/gait/hex_pos", 10, &GaitController::hexPosCB, this);
+		this->hexRotSubscriber = node.subscribe("/hexapod/gait/hex_rot", 10, &GaitController::hexRotCB, this);
+        
+        ROS_INFO("Publishing to Trajectory Action Servers...");
+        this->bodyVelocityPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/body_velocity", 1);
+        this->strideTimePublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_time", 1);
+        this->strideHeightPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_height", 1);
         this->stopCommandPublisher = node.advertise<std_msgs::Bool>("/hexapod/gait/stop", 1);
-
-        //TODO: Consider including above variables in Gait Action instead of publishing
+        
+        // Initialize subscribed variables
+        gait_mode = "Moving/Position";
+        base_twist.linear.x = 0.0;
+        base_twist.linear.y = 0.0;
+        base_twist.linear.z= 0.0;
+        base_twist.angular.x = 0.0;
+        base_twist.angular.y = 0.0;
+        base_twist.angular.z = 0.0;
+        hex_pos = 0.0;
+        hex_rot = 0.0;
 
         ROS_INFO("Subscribing to Gazebo GetLinkState service");
         this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
 
         ROS_INFO("Waiting for Leg Trajectory Servers...");
         this->L1_client.waitForServer(ros::Duration(30));
-        this->L2_client.waitForServer(ros::Duration(30));
-        this->L3_client.waitForServer(ros::Duration(30));
-        this->R1_client.waitForServer(ros::Duration(30));
-        this->R2_client.waitForServer(ros::Duration(30));
-        this->R3_client.waitForServer(ros::Duration(30));
-
-        ROS_INFO("Starting Gait Action Server...");
-        server.start();
+        // this->L2_client.waitForServer(ros::Duration(30));
+        // this->L3_client.waitForServer(ros::Duration(30));
+        // this->R1_client.waitForServer(ros::Duration(30));
+        // this->R2_client.waitForServer(ros::Duration(30));
+        // this->R3_client.waitForServer(ros::Duration(30));
 
         ROS_INFO("Gait controller ready.");
     }
@@ -55,16 +64,8 @@ public:
         this->node.shutdown();
     }
 
-    void executeCB(const hexapod_teleop::TeleopGoalConstPtr& goal)
+    void publish()
     {
-        // Extract goal
-        this->gait_mode = goal->gait_mode;
-        this->base_twist = goal->base_twist;
-        this->hex_pos = goal->hex_pos;
-        this->hex_heading = goal->hex_heading;
-        this->hex_rot = goal->hex_rot;
-        ROS_INFO("Gait Controller goal received.");
-
         base_pos.x = base_twist.linear.x;
         base_pos.y = base_twist.linear.y;
         base_pos.z = base_twist.linear.z;
@@ -74,16 +75,28 @@ public:
 
         // Calculate gait parameters
         int numSteps;
-        double lin_vel, lin_acc, ang_vel, ang_acc, duty_ratio;
+        double lin_vel, lin_acc, ang_vel, ang_acc, duty_factor, stride_time, stride_height;
+        double phase_L1, phase_L2, phase_L3, phase_R1, phase_R2, phase_R3;
         std::vector<double> relative_phases;
 
-        // TODO: Add other gait types than walking
-        // Get parameters from parameter server
-        node.getParam("/hexapod/gait/walking/linear_velocity", lin_vel);
-        node.getParam("/hexapod/gait/walking/linear_acceleration", lin_acc);
-        node.getParam("/hexapod/gait/walking/angular_velocity", ang_vel);
-        node.getParam("/hexapod/gait/walking/angular_acceleration", ang_acc);
-        node.getParam("/hexapod/gait/walking/duty_factor", duty_ratio);        
+        // TODO: Add other gait types than ripple
+        if (true)
+        {
+            // Get parameters from parameter server
+            node.getParam("/hexapod/gait/ripple/linear_velocity", lin_vel);
+            node.getParam("/hexapod/gait/ripple/linear_acceleration", lin_acc);
+            node.getParam("/hexapod/gait/ripple/angular_velocity", ang_vel);
+            node.getParam("/hexapod/gait/ripple/angular_acceleration", ang_acc);
+            node.getParam("/hexapod/gait/ripple/stride_time", stride_time);
+            node.getParam("/hexapod/gait/ripple/stride_height", stride_height);
+            node.getParam("/hexapod/gait/ripple/duty_factor", duty_factor);
+            node.getParam("/hexapod/gait/ripple/phase/L1", phase_L1);
+            node.getParam("/hexapod/gait/ripple/phase/L2", phase_L2);
+            node.getParam("/hexapod/gait/ripple/phase/L3", phase_L3);
+            node.getParam("/hexapod/gait/ripple/phase/R1", phase_R1);
+            node.getParam("/hexapod/gait/ripple/phase/R2", phase_R2);
+            node.getParam("/hexapod/gait/ripple/phase/R3", phase_R3);
+        }
 
         // Get initial position
         geometry_msgs::Point initial_pos = GetPosition();
@@ -93,19 +106,57 @@ public:
         double start = ros::Time::now().toSec();
 
         // Publish initial gait parameters
-        std_msgs::Float64 msg;
-        msg.data = duty_ratio;
-        this->dutyRatioPublisher.publish(msg);
-
         double velocity = 0.0;
-        msg.data = velocity;
-        this->bodyVelocityPublisher.publish(msg);
+        std_msgs::Float64 bodyVelocityMsg;
+        bodyVelocityMsg.data = velocity;
+        this->bodyVelocityPublisher.publish(bodyVelocityMsg);
 
-        msg.data = hex_heading*M_PI/180;
-        this->velocityAnglePublisher.publish(msg);
+        std_msgs::Float64 strideTimeMsg;
+        strideTimeMsg.data = stride_time;
+        this->strideTimePublisher.publish(strideTimeMsg);
+
+        std_msgs::Float64 strideHeightMsg;
+        strideHeightMsg.data = stride_height;
+        this->strideHeightPublisher.publish(strideHeightMsg);
 
         std_msgs::Bool stopCommand;
         stopCommand.data = true;
+
+        // Send goals to trajectory servers
+        ROS_INFO("Sending goal to leg trajectories...");
+        hexapod_control::GaitGoal gaitAction;
+        gaitAction.gait_mode = gait_mode;
+        gaitAction.duty_factor = duty_factor;
+        gaitAction.initial_phase = phase_L1;
+        this->L1_client.sendGoal(gaitAction,
+            boost::bind(&GaitController::L1Result, this, _1, _2),
+            boost::bind(&GaitController::L1Active, this),
+            boost::bind(&GaitController::L1Feedback, this, _1));
+        // gaitAction.initial_phase = phase_L2;
+        // this->L2_client.sendGoal(gaitAction,
+        //     boost::bind(&GaitController::L2Result, this, _1, _2),
+        //     boost::bind(&GaitController::L2Active, this),
+        //     boost::bind(&GaitController::L2Feedback, this, _1));
+        // gaitAction.initial_phase = phase_L3;
+        // this->L3_client.sendGoal(gaitAction,
+        //     boost::bind(&GaitController::L3Result, this, _1, _2),
+        //     boost::bind(&GaitController::L3Active, this),
+        //     boost::bind(&GaitController::L3Feedback, this, _1));
+        // gaitAction.initial_phase = phase_R1;
+        // this->R1_client.sendGoal(gaitAction,
+        //     boost::bind(&GaitController::R1Result, this, _1, _2),
+        //     boost::bind(&GaitController::R1Active, this),
+        //     boost::bind(&GaitController::R1Feedback, this, _1));
+        // gaitAction.initial_phase = phase_R2;
+        // this->R2_client.sendGoal(gaitAction,
+        //     boost::bind(&GaitController::R2Result, this, _1, _2),
+        //     boost::bind(&GaitController::R2Active, this),
+        //     boost::bind(&GaitController::R2Feedback, this, _1));
+        // gaitAction.initial_phase = phase_R3;
+        // this->R3_client.sendGoal(gaitAction,
+        //     boost::bind(&GaitController::R3Result, this, _1, _2),
+        //     boost::bind(&GaitController::R3Active, this),
+        //     boost::bind(&GaitController::R3Feedback, this, _1));
 
         // Start gait loop
         ROS_INFO("Starting gait...");
@@ -123,14 +174,7 @@ public:
             double elapsed = ros::Time::now().toSec() - start;
 
             // Check if preempted
-            if (server.isPreemptRequested())
-            {
-                ROS_INFO("Gait action preempted, ending gait...");
-                preempted = true;
-                stage = 2;
-                description = "Slowing down.";
-            }
-            else if (!ros::ok())
+            if (!ros::ok())
             {
                 ROS_INFO("Gait action aborted, ending gait...");
                 aborted = true;
@@ -155,14 +199,15 @@ public:
                     if (velocity < lin_vel)
                     {
                         velocity = velocity + elapsed*lin_acc;
-                        msg.data = velocity;
-                        this->bodyVelocityPublisher.publish(msg);
+                        bodyVelocityMsg.data = velocity;
+                        this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                     }
                     // Hit target velocity
                     else
                     {
-                        msg.data = lin_vel;
-                        this->bodyVelocityPublisher.publish(msg);
+                        velocity = lin_vel;
+                        bodyVelocityMsg.data = lin_vel;
+                        this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                         ramp_time = elapsed;
                         ramp_distance = distance_traveled;
                         stage = 1;
@@ -172,8 +217,9 @@ public:
                 }
                 else if (stage == 1) // Constant velocity stage
                 {
-                    msg.data = lin_vel;
-                    this->bodyVelocityPublisher.publish(msg);
+                    velocity = lin_vel;
+                    bodyVelocityMsg.data = lin_vel;
+                    this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                     if (distance_traveled >= hex_pos - ramp_distance)
                     {
                         stage = 2;
@@ -191,8 +237,8 @@ public:
                         {
                             velocity = 0.0;
                         }
-                        msg.data = velocity;
-                        this->bodyVelocityPublisher.publish(msg);
+                        bodyVelocityMsg.data = velocity;
+                        this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                     }
                     // Hit zero velocity
                     else
@@ -228,14 +274,15 @@ public:
                     if (velocity < ang_vel)
                     {
                         velocity = velocity + elapsed*ang_acc;
-                        msg.data = velocity;
-                        this->bodyVelocityPublisher.publish(msg);
+                        bodyVelocityMsg.data = velocity;
+                        this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                     }
                     // Hit target velocity
                     else
                     {
-                        msg.data = ang_vel;
-                        this->bodyVelocityPublisher.publish(msg);
+                        velocity = ang_vel;
+                        bodyVelocityMsg.data = ang_vel;
+                        this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                         ramp_time = elapsed;
                         ramp_angle = angle_traveled;
                         stage = 1;
@@ -245,8 +292,9 @@ public:
                 }
                 else if (stage == 1) // Constant velocity stage
                 {
-                    msg.data = ang_vel;
-                    this->bodyVelocityPublisher.publish(msg);
+                    velocity = ang_vel;
+                    bodyVelocityMsg.data = ang_vel;
+                    this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                     if (angle_traveled >= abs(hex_rot) - ramp_angle)
                     {
                         stage = 2;
@@ -264,8 +312,8 @@ public:
                         {
                             velocity = 0.0;
                         }
-                        msg.data = velocity;
-                        this->bodyVelocityPublisher.publish(msg);
+                        bodyVelocityMsg.data = velocity;
+                        this->bodyVelocityPublisher.publish(bodyVelocityMsg);
                     }
                     // Hit zero velocity
                     else
@@ -294,61 +342,14 @@ public:
             {
                 // TODO: Add AIK code
             }
+            else
+            {
 
-            // Send goals to trajectory servers
-            ROS_INFO("Initializing leg trajectories...");
-            hexapod_control::GaitGoal gaitAction;
-            gaitAction.gait_mode = gait_mode;
-            // TODO: include more parameters in goal instead of publishing body_velocity etc above?
-            this->L1_client.sendGoal(gaitAction,
-                boost::bind(&GaitController::L1Result, this, _1, _2),
-                boost::bind(&GaitController::L1Active, this),
-                boost::bind(&GaitController::L1Feedback, this, _1));
-            this->R1_client.sendGoal(gaitAction,
-                boost::bind(&GaitController::R1Result, this, _1, _2),
-                boost::bind(&GaitController::R1Active, this),
-                boost::bind(&GaitController::R1Feedback, this, _1));
-            this->L2_client.sendGoal(gaitAction,
-                boost::bind(&GaitController::L2Result, this, _1, _2),
-                boost::bind(&GaitController::L2Active, this),
-                boost::bind(&GaitController::L2Feedback, this, _1));
-            this->R2_client.sendGoal(gaitAction,
-                boost::bind(&GaitController::R2Result, this, _1, _2),
-                boost::bind(&GaitController::R2Active, this),
-                boost::bind(&GaitController::R2Feedback, this, _1));
-            this->L3_client.sendGoal(gaitAction,
-                boost::bind(&GaitController::L3Result, this, _1, _2),
-                boost::bind(&GaitController::L3Active, this),
-                boost::bind(&GaitController::L3Feedback, this, _1));
-            this->R3_client.sendGoal(gaitAction,
-                boost::bind(&GaitController::R3Result, this, _1, _2),
-                boost::bind(&GaitController::R3Active, this),
-                boost::bind(&GaitController::R3Feedback, this, _1));
+            }
             
-            // Publish feedback
-            this->actionFeedback.distance = traveled;
-            this->actionFeedback.time = elapsed;
-            this->actionFeedback.description = description;
-            server.publishFeedback(this->actionFeedback);
-
+            // ros::spinOnce();
+            
             rate.sleep();
-        }
-
-        // Publish result
-        this->actionResult.distance = traveled;
-        this->actionResult.time = ros::Time::now().toSec() - start;
-
-        if (preempted)
-        {
-            server.setPreempted(actionResult);
-        }
-        else if (aborted)
-        {
-            server.setAborted(actionResult);
-        }
-        else
-        {
-            server.setSucceeded(actionResult);
         }
     }
 
@@ -442,33 +443,27 @@ public:
         R3IsActive = false;
     }
 
+    void gaitModeCB(const std_msgs::StringConstPtr& msg)
+	{
+		this->gait_mode = msg->data;
+        GaitController::publish();
+	}
 
-    // TODO: Replace struct with geometry_msgs::Vector3 ?
-    struct Vector3
-    {
-        double x, y, z;
+    void baseTwistCB(const geometry_msgs::TwistConstPtr& msg)
+	{
+		this->base_twist.linear = msg->linear;
+		this->base_twist.angular = msg->angular;
+	}
 
-        Vector3() :
-            x(0.0), y(0.0), z(0.0) {}
+    void hexPosCB(const std_msgs::Float64ConstPtr& msg)
+	{
+		this->hex_pos = msg->data;
+	}
 
-        Vector3(double x, double y, double z) :
-            x(x), y(y), z(z) {}
-
-        Vector3 operator+(const Vector3& other)
-        {
-            return Vector3(x + other.x, y + other.y, z + other.z);
-        }
-
-        Vector3 operator-(const Vector3& other)
-        {
-            return Vector3(x - other.x, y - other.y, z - other.z);
-        }
-
-        double norm()
-        {
-            return sqrt(pow(x, 2) + pow(y, 2) + pow(z, 2));
-        }
-    };
+    void hexRotCB(const std_msgs::Float64ConstPtr& msg)
+	{
+		this->hex_rot = msg->data;
+	}
 
 private:
     geometry_msgs::Point GetPosition()
@@ -489,32 +484,33 @@ private:
         return linkStateMsg.response.link_state.pose.orientation.z;
     }
 
-    std::string actionName;
     ros::NodeHandle node;
-    actionlib::SimpleActionServer<hexapod_teleop::TeleopAction> server;
     actionlib::SimpleActionClient<hexapod_control::GaitAction> L1_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> L2_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> L3_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> R1_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> R2_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> R3_client;
+    // actionlib::SimpleActionClient<hexapod_control::GaitAction> L2_client;
+    // actionlib::SimpleActionClient<hexapod_control::GaitAction> L3_client;
+    // actionlib::SimpleActionClient<hexapod_control::GaitAction> R1_client;
+    // actionlib::SimpleActionClient<hexapod_control::GaitAction> R2_client;
+    // actionlib::SimpleActionClient<hexapod_control::GaitAction> R3_client;
     bool L1IsActive = false;
     bool L2IsActive = false;
     bool L3IsActive = false;
     bool R1IsActive = false;
     bool R2IsActive = false;
     bool R3IsActive = false;
-    hexapod_teleop::TeleopFeedback actionFeedback;
-    hexapod_teleop::TeleopResult actionResult;
-    ros::Publisher dutyRatioPublisher;
     ros::Publisher bodyVelocityPublisher;
-    ros::Publisher velocityAnglePublisher;
+    ros::Publisher strideTimePublisher;
+    ros::Publisher strideHeightPublisher;
     ros::Publisher stopCommandPublisher;
+    ros::Subscriber gaitModeSubscriber;
+    ros::Subscriber baseTwistSubscriber;
+    ros::Subscriber hexPosSubscriber;
+    ros::Subscriber hexHeadingSubscriber;
+    ros::Subscriber hexRotSubscriber;
     ros::ServiceClient linkStateClient;
     std::string gait_mode;
     geometry_msgs::Twist base_twist;
     geometry_msgs::Vector3 base_pos, base_rot;
-    double hex_pos, hex_heading, hex_rot;
+    double hex_pos, hex_rot;
 };
 
 int main(int argc, char **argv)
@@ -523,7 +519,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "gait_controller");
     ROS_INFO("Initialized ros...");
 
-    GaitController actionServer("gait_controller");
+    GaitController gait_controller("gait_controller");
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;

@@ -1,6 +1,7 @@
 // #include "ros/ros.h"
 #include "actionlib/client/simple_action_client.h"
-#include "hexapod_teleop/TeleopAction.h"
+#include "std_msgs/String.h"
+#include "std_msgs/Float64.h"
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Vector3.h"
 #include "signal.h"
@@ -21,17 +22,18 @@
 class TeleopHexapod
 {
 public:
-    TeleopHexapod(std::string name) :
-        client("gait_controller", true),
-        // L1_client("leg_L1_AIK_action", true),
-        // R1_client("leg_R1_AIK_action", true),
-        // L2_client("leg_L2_AIK_action", true),
-        // R2_client("leg_R2_AIK_action", true),
-        // L3_client("leg_L3_AIK_action", true),
-        // R3_client("leg_R3_AIK_action", true),
-        actionName(name)
+    TeleopHexapod(std::string name)
     {
-        input_mode = "Stationary";
+        ROS_INFO("Publishing to Gait Controller and Trajectory Action Servers...");
+        this->gaitModePublisher = node.advertise<std_msgs::String>("/hexapod/gait/gait_mode", 1);
+        this->baseTwistPublisher = node.advertise<geometry_msgs::Twist>("/hexapod/gait/base_twist", 1);
+        this->hexPosPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/hex_pos", 1);
+        this->hexHeadingPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/hex_heading", 1);
+        this->hexRotPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/hex_rot", 1);
+
+        // Initialize published variables
+        input_mode = "Moving";
+        gait_mode = "Moving/Position";
         
         base_pos.x = 0.0;
         base_pos.y = 0.0;
@@ -40,8 +42,7 @@ public:
         base_rot.y = 0.0;
         base_rot.z = 0.0;
 
-        // update this to hexapod's current location?
-        hex_pos = 0.0;
+        hex_pos = 0.0; // update this to hexapod's current location?
         hex_heading = 0.0;
         hex_rot = 0.0;
 
@@ -49,20 +50,6 @@ public:
         base_rot_delta = 15 * M_PI / 180;
         hex_pos_delta = 0.04;
         hex_rot_delta = 10 * M_PI / 180;
-
-        base_pos_scale = 1.0;
-        base_rot_scale = 1.0;
-        hex_pos_scale = 1.0;
-        hex_rot_scale = 1.0;
-
-        ROS_INFO("Waiting for Gait Controller...");
-        client.waitForServer(ros::Duration(30));
-        // L1_client.waitForServer(ros::Duration(30));
-        // R1_client.waitForServer(ros::Duration(30));
-        // L2_client.waitForServer(ros::Duration(30));
-        // R2_client.waitForServer(ros::Duration(30));
-        // L3_client.waitForServer(ros::Duration(30));
-        // R3_client.waitForServer(ros::Duration(30));
 
         ROS_INFO("Teleop controller ready.");
     }
@@ -237,31 +224,35 @@ public:
             }
 
             geometry_msgs::Twist base_twist;
-            base_twist.linear.x  = base_pos_scale*base_pos.x;
-            base_twist.linear.y  = base_pos_scale*base_pos.y;
-            base_twist.linear.z  = base_pos_scale*base_pos.z;
-            base_twist.angular.x = base_rot_scale*base_rot.x;
-            base_twist.angular.y = base_rot_scale*base_rot.y;
-            base_twist.angular.z = base_rot_scale*base_rot.z;
-            hex_pos = hex_pos_scale*hex_pos;
-            //TODO: Consider removing scaling step
+            base_twist.linear.x  = base_pos.x;
+            base_twist.linear.y  = base_pos.y;
+            base_twist.linear.z  = base_pos.z;
+            base_twist.angular.x = base_rot.x;
+            base_twist.angular.y = base_rot.y;
+            base_twist.angular.z = base_rot.z;
             
             if(dirty == true)
             {
-                hexapod_teleop::TeleopGoal goal;
-                goal.gait_mode = gait_mode;
-                goal.base_twist = base_twist;
-                goal.hex_pos = hex_pos;
-                goal.hex_heading = hex_heading;
-                goal.hex_rot = hex_rot;
+                std_msgs::String gaitModeMsg;
+                gaitModeMsg.data = gait_mode;
+                gaitModePublisher.publish(gaitModeMsg);
+                
+                geometry_msgs::Twist baseTwistMsg;
+                baseTwistMsg.linear = base_twist.linear;
+                baseTwistMsg.angular = base_twist.angular;
+                baseTwistPublisher.publish(baseTwistMsg);
 
-                client.sendGoal(goal);
-                // L1_client.sendGoal(goal);
-                // R1_client.sendGoal(goal);
-                // L2_client.sendGoal(goal);
-                // R2_client.sendGoal(goal);
-                // L3_client.sendGoal(goal);
-                // R3_client.sendGoal(goal);
+                std_msgs::Float64 hexPosMsg;
+                hexPosMsg.data = hex_pos;
+                hexPosPublisher.publish(hexPosMsg);
+
+                std_msgs::Float64 hexHeadingMsg;
+                hexHeadingMsg.data = hex_heading;
+                hexHeadingPublisher.publish(hexHeadingMsg);
+
+                std_msgs::Float64 hexRotMsg;
+                hexRotMsg.data = hex_rot;
+                hexRotPublisher.publish(hexRotMsg);
 
                 dirty = false;
             }
@@ -271,20 +262,16 @@ public:
     }
 
 private:
-    std::string actionName;
-    // ros::NodeHandle node;
-    actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> client;
-    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L1_client;
-    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R1_client;
-    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L2_client;
-    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R2_client;
-    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> L3_client;
-    // actionlib::SimpleActionClient<hexapod_teleop::TeleopAction> R3_client;
+    ros::NodeHandle node;
+    ros::Publisher gaitModePublisher;
+    ros::Publisher baseTwistPublisher;
+    ros::Publisher hexPosPublisher;
+    ros::Publisher hexHeadingPublisher;
+    ros::Publisher hexRotPublisher;
     std::string input_mode, gait_mode;
     geometry_msgs::Vector3 base_pos, base_rot;
     double hex_pos, hex_heading, hex_rot;
     double base_pos_delta, base_rot_delta, hex_pos_delta, hex_rot_delta;
-    double base_pos_scale, base_rot_scale, hex_pos_scale, hex_rot_scale;
 };
 
 int kfd = 0;
@@ -310,8 +297,6 @@ int main(int argc, char** argv)
     
     ROS_INFO("Sending teleop goal...");
     teleop_hexapod.keyLoop(kfd, cooked, raw);
-
-    // ros::spin();
 
     return 0;
 }

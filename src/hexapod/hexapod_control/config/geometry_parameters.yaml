@@ -8,7 +8,7 @@ femur_length: 0.04 # m
 tibia_length: 0.08 # m
 
 foot:
-  radius: 0.16464 # m
+  radius: 0.15 # m
 leg_L1:
   hip_angle: 120 # degrees
 leg_R1:

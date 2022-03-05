@@ -1,5 +1,7 @@
 # Define the goal
 string gait_mode
+float64 duty_factor
+float64 initial_phase
 ---
 # Define the result
 int32 steps_taken
