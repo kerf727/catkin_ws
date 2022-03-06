@@ -1,10 +1,10 @@
 ripple:
   linear_velocity: 0.02
   linear_acceleration: 0.01
-  angular_velocity: 0.02 # TODO: edit this value
-  angular_acceleration: 0.01 # TODO: edit this value
+  angular_velocity: 0.04
+  angular_acceleration: 0.01
   duty_factor: 0.667
-  stride_time: 2.0
+  stride_time: 1.0
   stride_height: 0.02
   stride_length: 0.02
   phase:
@@ -18,8 +18,8 @@ ripple:
 tripod:
   linear_velocity: 0.02
   linear_acceleration: 0.01
-  angular_velocity: 0.02 # TODO: edit this value
-  angular_acceleration: 0.01 # TODO: edit this value
+  angular_velocity: 0.02
+  angular_acceleration: 0.01
   duty_factor: 0.5
   stride_time: 1.0
   stride_height: 0.02
@@ -35,8 +35,8 @@ tripod:
 wave:
   linear_velocity: 0.02
   linear_acceleration: 0.01
-  angular_velocity: 0.02 # TODO: edit this value
-  angular_acceleration: 0.01 # TODO: edit this value
+  angular_velocity: 0.02
+  angular_acceleration: 0.01
   duty_factor: 0.833
   stride_time: 1.0
   stride_height: 0.02

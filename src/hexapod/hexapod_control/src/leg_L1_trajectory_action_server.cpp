@@ -292,7 +292,7 @@ public:
         if (phase < duty_factor)
         {
             support_phase = phase/duty_factor;
-            if (velocity > 0.0)
+            if (velocity > 0.0) // TODO: left up to chance. should be based on hex_rot polarity rather than velocity
             {
                 foot_angle = hip_angle + theta*(2*support_phase - 1);
             }
