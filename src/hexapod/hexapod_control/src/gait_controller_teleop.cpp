@@ -23,11 +23,9 @@ public:
         this->node = node;
 
         ROS_INFO("Subscribing to Teleop...");
-		this->gaitModeSubscriber = node.subscribe("/hexapod/gait/gait_mode", 10, &GaitController::gaitModeCB, this);
-		this->baseTwistSubscriber = node.subscribe("/hexapod/gait/base_twist", 10, &GaitController::baseTwistCB, this);
-		this->hexPosSubscriber = node.subscribe("/hexapod/gait/hex_pos", 10, &GaitController::hexPosCB, this);
-		this->hexRotSubscriber = node.subscribe("/hexapod/gait/hex_rot", 10, &GaitController::hexRotCB, this);
-        
+		this->twistSubscriber = node.subscribe("/hexapod/twist", 10, &GaitController::twistCB, this);
+		this->buttonSubscriber = node.subscribe("/hexapod/button", 10, &GaitController::buttonCB, this);
+		
         ROS_INFO("Publishing to Trajectory Action Servers...");
         this->velocityPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/velocity", 1);
         this->strideTimePublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_time", 1);
@@ -36,15 +34,10 @@ public:
         this->stopCommandPublisher = node.advertise<std_msgs::Bool>("/hexapod/gait/stop", 1);
         
         // Initialize subscribed variables
-        gait_mode = "Moving/Position";
-        base_twist.linear.x = 0.0;
-        base_twist.linear.y = 0.0;
-        base_twist.linear.z = 0.0;
-        base_twist.angular.x = 0.0;
-        base_twist.angular.y = 0.0;
-        base_twist.angular.z = 0.0;
-        hex_pos = 0.04; // TODO: put these two into gait_parameters?
-        hex_rot = 10 * M_PI / 180;
+        // TODO: Remove this section? Does this lead to weird startup behavior?
+        speed = 0.0;
+        yaw = 0.0;
+        yaw_angle = 0.0;
 
         ROS_INFO("Subscribing to Gazebo GetLinkState service");
         this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
@@ -65,30 +58,50 @@ public:
         this->node.shutdown();
     }
 
-    void publish()
-    {
-        base_pos.x = base_twist.linear.x;
-        base_pos.y = base_twist.linear.y;
-        base_pos.z = base_twist.linear.z;
-        base_rot.x = base_twist.angular.x;
-        base_rot.y = base_twist.angular.y;
-        base_rot.z = base_twist.angular.z;
+    void buttonCB(const std_msgs::BoolConstPtr& msg)
+	{
+        B_button = msg->data;
+    }
+
+    void twistCB(const geometry_msgs::TwistConstPtr& msg)
+	{
+		double linearX = msg->linear.x;
+		double linearY = msg->linear.y;
+		double angular = msg->angular.x;
 
         // Calculate gait parameters
         int numSteps;
-        double lin_vel, lin_acc, ang_vel, ang_acc;
+        double lin_acc, ang_acc;
         double duty_factor, stride_time, stride_height, stride_length;
         double phase_L1, phase_L2, phase_L3, phase_R1, phase_R2, phase_R3;
         std::vector<double> relative_phases;
 
-        // TODO: control gait type from teleop
+        int gait_counter = 0;
+        if (B_button)
+        {
+            gait_counter += 1;
+            if (gait_counter > 2)
+            {
+                gait_counter = 0;
+            }
+        }
+
         std::string gait_type = "ripple";
+        switch(gait_counter)
+        {
+            case(0):
+                gait_type = "ripple";
+            case(1):
+                gait_type = "tripod";
+            case(2):
+                gait_type = "wave";
+        }
 
         // Get parameters from parameter server
-        node.getParam("/hexapod/gait/" + gait_type + "/linear_velocity", lin_vel);
-        node.getParam("/hexapod/gait/" + gait_type + "/linear_acceleration", lin_acc);
-        node.getParam("/hexapod/gait/" + gait_type + "/angular_velocity", ang_vel);
-        node.getParam("/hexapod/gait/" + gait_type + "/angular_acceleration", ang_acc);
+        node.getParam("/hexapod/gait/" + gait_type + "/max_speed", max_speed);
+        node.getParam("/hexapod/gait/" + gait_type + "/max_yaw", max_yaw);
+        node.getParam("/hexapod/gait/" + gait_type + "/lin_acc", lin_acc);
+        node.getParam("/hexapod/gait/" + gait_type + "/ang_acc", ang_acc);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_time", stride_time);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_length", stride_length);
@@ -99,6 +112,72 @@ public:
         node.getParam("/hexapod/gait/" + gait_type + "/phase/R1", phase_R1);
         node.getParam("/hexapod/gait/" + gait_type + "/phase/R2", phase_R2);
         node.getParam("/hexapod/gait/" + gait_type + "/phase/R3", phase_R3);
+
+        // Dead zone
+        double deadzone = 0.0; // no deadzone necessary for SN30pro+
+        if (abs(linearX) < deadzone)
+        {
+            linearX = 0.0;
+        }
+        if (abs(linearY) < deadzone)
+        {
+            linearY = 0.0;
+        }
+        if (abs(angular) < deadzone)
+        {
+            angular = 0.0;
+        }
+
+        // Map joystick data to speed, yaw, yaw_angle
+        // Strafe (Lx and Ly only)
+        if ((linearX != 0.0 || linearY != 0.0) && angular == 0.0)
+        {  
+            gait_mode = "Strafe";
+            speed = mapRange(abs(linearX) + abs(linearY), 0.0, 1.0, 0.0, max_speed);
+            yaw = 0.0;
+            yaw_angle = atan2(linearY, linearX);
+        }
+        // Rotate (Rx only)
+        else if (linearX == 0.0 && linearY == 0.0 && angular != 0.0)
+        {
+            gait_mode = "Rotate";
+            speed = 0.0;
+            yaw = mapRange(angular, -1.0, 1.0, -max_yaw, max_yaw);
+            yaw_angle = 0.0;
+        }
+        // Steer (Ly and Rx)
+        else if (linearY != 0.0 && angular != 0.0)
+        {
+            gait_mode = "Steer";
+            speed = mapRange(abs(linearY), 0.0, 1.0, 0.0, max_speed);
+            yaw = mapRange(angular, -1.0, 1.0, -max_yaw, max_yaw);
+            yaw_angle = mapRange(abs(angular), 0.0, 1.0, 0.0, M_PI/3.0);
+            if (angular > 0.0)
+            {
+                yaw_angle = M_PI - yaw_angle;
+            }
+        }
+        // Default
+        else
+        {
+            speed = 0.0;
+            yaw = 0.0;
+            yaw_angle = 0.0;
+        }
+
+        // Cap maximum values
+        if (speed > max_speed)
+        {
+            speed = max_speed;
+        }
+        if (yaw > max_yaw)
+        {
+            yaw = max_yaw;
+        }
+        if (yaw_angle > max_yaw_angle)
+        {
+            yaw_angle = max_yaw_angle;
+        }
 
         // Get initial position
         geometry_msgs::Point initial_pos = GetPosition();
@@ -179,7 +258,7 @@ public:
             // Calculate elapsed time
             double elapsed = ros::Time::now().toSec() - start;
 
-            ROS_INFO("traveled: %f, hex_pos: %f", traveled, hex_pos);
+            ROS_INFO("traveled: %f, speed: %f", traveled, speed);
 
             // Check if preempted
             if (!ros::ok())
@@ -190,27 +269,26 @@ public:
                 description = "Slowing down.";
             }
 
-            // Control gait
-            if (gait_mode == "Moving/Position")
+            if (gait_mode == "Strafe")
             {
                 double distance_traveled, ramp_distance;
 
                 // Calculate distance traveled
-                geometry_msgs::Point current_pos = GetPosition();
-                distance_traveled = sqrt(pow(current_pos.x - initial_pos.x, 2) + 
-                                         pow(current_pos.y - initial_pos.y, 2));
+                geometry_msgs::Point pos = GetPosition();
+                distance_traveled = sqrt(pow(pos.x - initial_pos.x, 2) + 
+                                         pow(pos.y - initial_pos.y, 2));
                 traveled = distance_traveled;
-                ROS_INFO("cur: (%f, %f), ini: (%f, %f), dt: %f", current_pos.x, current_pos.y, initial_pos.x, initial_pos.y, distance_traveled);
+                ROS_INFO("cur: (%f, %f), ini: (%f, %f), dt: %f", pos.x, pos.y, initial_pos.x, initial_pos.y, distance_traveled);
 
                 if (stage == 0) // Ramp-up stage
                 {
                     // Ramping up
-                    if (velocity < lin_vel)
+                    if (velocity < speed)
                     {
                         velocity = velocity + elapsed*lin_acc;
-                        if (velocity > lin_vel)
+                        if (velocity > speed)
                         {
-                            velocity = lin_vel;
+                            velocity = speed;
                         }
                         velocityMsg.data = velocity;
                         this->velocityPublisher.publish(velocityMsg);
@@ -218,7 +296,7 @@ public:
                     // Hit target velocity
                     else
                     {
-                        velocityMsg.data = lin_vel;
+                        velocityMsg.data = speed;
                         this->velocityPublisher.publish(velocityMsg);
                         ramp_time = elapsed;
                         ramp_distance = distance_traveled;
@@ -230,9 +308,9 @@ public:
                 }
                 else if (stage == 1) // Constant velocity stage
                 {
-                    velocityMsg.data = lin_vel;
+                    velocityMsg.data = speed;
                     this->velocityPublisher.publish(velocityMsg);
-                    if (distance_traveled >= hex_pos - ramp_distance)
+                    if (distance_traveled >= speed - ramp_distance)
                     {
                         stage = 2;
                         description = "Slowing down.";
@@ -271,7 +349,7 @@ public:
                     }
                 }
             }
-            else if (gait_mode == "Moving/Orientation")
+            else if (gait_mode == "Rotate")
             {
                 double angle_traveled, ramp_angle;
                 
@@ -283,22 +361,22 @@ public:
                 if (stage == 0) // Ramp-up stage
                 {
                     // Ramping up
-                    if (abs(velocity) < ang_vel)
+                    if (abs(velocity) < yaw)
                     {
-                        if (hex_rot > 0.0)
+                        if (yaw > 0.0)
                         {
                             velocity += elapsed*ang_acc;
-                            if (velocity > ang_vel)
+                            if (velocity > yaw)
                             {
-                                velocity = ang_vel;
+                                velocity = yaw;
                             }
                         }
                         else
                         {
                             velocity -= elapsed*ang_acc;
-                            if (velocity < -ang_vel)
+                            if (velocity < -yaw)
                             {
-                                velocity = -ang_vel;
+                                velocity = -yaw;
                             }
                         }
                         velocityMsg.data = velocity;
@@ -307,13 +385,13 @@ public:
                     // Hit target velocity
                     else
                     {
-                        if (hex_rot > 0.0)
+                        if (yaw > 0.0)
                         {
-                            velocityMsg.data = ang_vel;
+                            velocityMsg.data = yaw;
                         }
                         else
                         {
-                            velocityMsg.data = -ang_vel;
+                            velocityMsg.data = -yaw;
                         }
                         this->velocityPublisher.publish(velocityMsg);
                         ramp_time = elapsed;
@@ -325,16 +403,16 @@ public:
                 }
                 else if (stage == 1) // Constant velocity stage
                 {
-                    if (hex_rot > 0.0)
+                    if (yaw > 0.0)
                         {
-                            velocityMsg.data = ang_vel;
+                            velocityMsg.data = yaw;
                         }
                         else
                         {
-                            velocityMsg.data = -ang_vel;
+                            velocityMsg.data = -yaw;
                         }
                     this->velocityPublisher.publish(velocityMsg);
-                    if (angle_traveled >= abs(hex_rot) - ramp_angle)
+                    if (angle_traveled >= abs(yaw) - ramp_angle)
                     {
                         stage = 2;
                         description = "Slowing down.";
@@ -346,7 +424,7 @@ public:
                     // Slowing down
                     if (abs(velocity) > 0.0)
                     {
-                        if (hex_rot > 0.0)
+                        if (yaw > 0.0)
                         {
                             velocity -= elapsed*ang_acc;
                             if (velocity < 0.0)
@@ -384,13 +462,13 @@ public:
                     }
                 }
             }
-            else if (gait_mode == "Stationary/Position")
+            else if (gait_mode == "Steer")
             {
-                // TODO: Add AIK code
+                // TODO: Add Steer code
             }
             else if (gait_mode == "Stationary/Orientation")
             {
-                // TODO: Add AIK code
+                // TODO: Add AIK code for Stationary/Position, Stationary/Orientation
             }
             else
             {
@@ -493,29 +571,16 @@ public:
         R3IsActive = false;
     }
 
-    void gaitModeCB(const std_msgs::StringConstPtr& msg)
-	{
-		this->gait_mode = msg->data;
-        GaitController::publish();
-	}
+    double mapRange(const double& inValue,
+                    const double& minInRange, const double& maxInRange,
+                    const double& minOutRange, const double& maxOutRange)
+    {
+        double x = (inValue - minInRange) / (maxInRange - minInRange);
+        double result = minOutRange + (maxOutRange - minOutRange) * x;
 
-    void baseTwistCB(const geometry_msgs::TwistConstPtr& msg)
-	{
-		this->base_twist.linear = msg->linear;
-		this->base_twist.angular = msg->angular;
-	}
+        return result;
+    }
 
-    void hexPosCB(const std_msgs::Float64ConstPtr& msg)
-	{
-		this->hex_pos = msg->data;
-	}
-
-    void hexRotCB(const std_msgs::Float64ConstPtr& msg)
-	{
-		this->hex_rot = msg->data;
-	}
-
-private:
     geometry_msgs::Point GetPosition()
     {
         gazebo_msgs::GetLinkState linkStateMsg;
@@ -533,7 +598,17 @@ private:
         this->linkStateClient.call(linkStateMsg);
         return linkStateMsg.response.link_state.pose.orientation.z;
     }
+    
+    double calcXYVectorAngle(const geometry_msgs::Point& a, const geometry_msgs::Point& b)
+    {
+        double a_dot_b = a.x*b.x + a.y*b.y;
+        double a_mag = sqrt(pow(a.x, 2) + pow(a.y, 2));
+        double b_mag = sqrt(pow(b.x, 2) + pow(b.y, 2));
 
+        return acos(a_dot_b/(a_mag*b_mag));
+    }
+
+private:
     ros::NodeHandle node;
     actionlib::SimpleActionClient<hexapod_control::GaitAction> L1_client;
     actionlib::SimpleActionClient<hexapod_control::GaitAction> L2_client;
@@ -547,21 +622,20 @@ private:
     bool R1IsActive = false;
     bool R2IsActive = false;
     bool R3IsActive = false;
+    ros::Subscriber twistSubscriber;
+    ros::Subscriber buttonSubscriber;
     ros::Publisher velocityPublisher;
     ros::Publisher strideTimePublisher;
     ros::Publisher strideHeightPublisher;
     ros::Publisher strideLengthPublisher;
     ros::Publisher stopCommandPublisher;
-    ros::Subscriber gaitModeSubscriber;
-    ros::Subscriber baseTwistSubscriber;
-    ros::Subscriber hexPosSubscriber;
-    ros::Subscriber hexHeadingSubscriber;
-    ros::Subscriber hexRotSubscriber;
     ros::ServiceClient linkStateClient;
     std::string gait_mode;
     geometry_msgs::Twist base_twist;
-    geometry_msgs::Vector3 base_pos, base_rot;
-    double hex_pos, hex_rot;
+    double speed, yaw, yaw_angle;
+    bool B_button;
+    double max_speed, max_yaw, max_yaw_angle;
+    double inf = 1e6; // approximate infinity. increase if necessary
 };
 
 int main(int argc, char **argv)
