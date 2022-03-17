@@ -27,14 +27,15 @@ public:
         ROS_INFO("Publishing to Gait Controller and Trajectory Action Servers...");
         this->gaitModePublisher = node.advertise<std_msgs::String>("/hexapod/gait/gait_mode", 1);
         this->baseTwistPublisher = node.advertise<geometry_msgs::Twist>("/hexapod/gait/base_twist", 1);
-        this->hexPosPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/hex_pos", 1);
-        this->hexHeadingPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/hex_heading", 1);
-        this->hexRotPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/hex_rot", 1);
+        this->speedPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/speed", 1);
+        this->yawPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/yaw", 1);
+        this->yawAnglePublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/yaw_angle", 1);
 
         // Initialize published variables
         input_mode = "Moving";
         gait_mode = "Moving/Position";
         
+        // Stationary mode variables
         base_pos.x = 0.0;
         base_pos.y = 0.0;
         base_pos.z = 0.0;
@@ -42,14 +43,18 @@ public:
         base_rot.y = 0.0;
         base_rot.z = 0.0;
 
-        hex_pos = 0.0; // update this to hexapod's current location?
-        hex_heading = 0.0;
-        hex_rot = 0.0;
-
+        // Stationary mode keyboard constants
         base_pos_delta = 0.02;
         base_rot_delta = 15 * M_PI / 180;
-        hex_pos_delta = 0.04;
-        hex_rot_delta = 10 * M_PI / 180;
+
+        // Moving mode variables
+        speed = 0.0;
+        yaw = 0.0;
+        yaw_angle = 0.0;
+
+        // Moving mode keyboard constants
+        speed_delta = 0.04;
+        yaw_delta = 10 * M_PI / 180;
 
         ROS_INFO("Teleop controller ready.\n");
     }
@@ -96,8 +101,9 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_pos = hex_pos_delta;
-                        hex_heading = 90;
+                        speed = speed_delta;
+                        yaw = 0.0;
+                        yaw_angle = 0;
                         gait_mode = "Moving/Position";
                     }
                     dirty = true;
@@ -113,8 +119,9 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_pos = hex_pos_delta;
-                        hex_heading = 180;
+                        speed = speed_delta;
+                        yaw = 0.0;
+                        yaw_angle = 270;
                         gait_mode = "Moving/Position";
                     }
                     dirty = true;
@@ -130,8 +137,9 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_pos = hex_pos_delta;
-                        hex_heading = 270;
+                        speed = speed_delta;
+                        yaw = 0.0;
+                        yaw_angle = 180;
                         gait_mode = "Moving/Position";
                     }
                     dirty = true;
@@ -147,8 +155,9 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_pos = hex_pos_delta;
-                        hex_heading = 0;
+                        speed = speed_delta;
+                        yaw = 0.0;
+                        yaw_angle = 90;
                         gait_mode = "Moving/Position";
                     }
                     dirty = true;
@@ -186,7 +195,8 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_rot = hex_rot_delta;
+                        speed = speed_delta;
+                        yaw = yaw_delta;
                         gait_mode = "Moving/Orientation";
                     }
                     dirty = true;
@@ -202,7 +212,8 @@ public:
                     }
                     else if (input_mode == "Moving")
                     {
-                        hex_rot = -hex_rot_delta;
+                        speed = speed_delta;
+                        yaw = -yaw_delta;
                         gait_mode = "Moving/Orientation";
                     }
                     dirty = true;
@@ -238,17 +249,17 @@ public:
                 baseTwistMsg.angular = base_twist.angular;
                 baseTwistPublisher.publish(baseTwistMsg);
 
-                std_msgs::Float64 hexPosMsg;
-                hexPosMsg.data = hex_pos;
-                hexPosPublisher.publish(hexPosMsg);
+                std_msgs::Float64 speedMsg;
+                speedMsg.data = speed;
+                speedPublisher.publish(speedMsg);
 
-                std_msgs::Float64 hexHeadingMsg;
-                hexHeadingMsg.data = hex_heading;
-                hexHeadingPublisher.publish(hexHeadingMsg);
+                std_msgs::Float64 yawMsg;
+                yawMsg.data = yaw;
+                yawPublisher.publish(yawMsg);
 
-                std_msgs::Float64 hexRotMsg;
-                hexRotMsg.data = hex_rot;
-                hexRotPublisher.publish(hexRotMsg);
+                std_msgs::Float64 yawAngleMsg;
+                yawAngleMsg.data = yaw_angle;
+                yawAnglePublisher.publish(yawAngleMsg);
 
                 // Gait Controller callback triggered when gait_mode topic received
                 // Publish this last so other variables are updated first
@@ -267,13 +278,13 @@ private:
     ros::NodeHandle node;
     ros::Publisher gaitModePublisher;
     ros::Publisher baseTwistPublisher;
-    ros::Publisher hexPosPublisher;
-    ros::Publisher hexHeadingPublisher;
-    ros::Publisher hexRotPublisher;
+    ros::Publisher speedPublisher;
+    ros::Publisher yawAnglePublisher;
+    ros::Publisher yawPublisher;
     std::string input_mode, gait_mode;
     geometry_msgs::Vector3 base_pos, base_rot;
-    double hex_pos, hex_heading, hex_rot;
-    double base_pos_delta, base_rot_delta, hex_pos_delta, hex_rot_delta;
+    double speed, yaw, speed_delta, yaw_delta, yaw_angle;
+    double base_pos_delta, base_rot_delta, hex_rot_delta;
 };
 
 int kfd = 0;
