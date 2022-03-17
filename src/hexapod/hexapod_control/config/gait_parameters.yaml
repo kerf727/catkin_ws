@@ -1,8 +1,8 @@
 ripple:
-  linear_velocity: 0.02
-  linear_acceleration: 0.01
-  angular_velocity: 0.04
-  angular_acceleration: 0.01
+  max_speed: 0.02
+  max_yaw: 0.02
+  lin_acc: 0.01
+  ang_acc: 0.01
   duty_factor: 0.667
   stride_time: 1.0
   stride_height: 0.02
@@ -16,10 +16,10 @@ ripple:
     R3: 0.667
 
 tripod:
-  linear_velocity: 0.02
-  linear_acceleration: 0.01
-  angular_velocity: 0.02
-  angular_acceleration: 0.01
+  max_speed: 0.02
+  max_yaw: 0.02
+  lin_acc: 0.01
+  ang_acc: 0.01
   duty_factor: 0.5
   stride_time: 1.0
   stride_height: 0.02
@@ -33,10 +33,10 @@ tripod:
     R3: 0.0
 
 wave:
-  linear_velocity: 0.02
-  linear_acceleration: 0.01
-  angular_velocity: 0.02
-  angular_acceleration: 0.01
+  max_speed: 0.02
+  max_yaw: 0.02
+  lin_acc: 0.01
+  ang_acc: 0.01
   duty_factor: 0.833
   stride_time: 1.0
   stride_height: 0.02

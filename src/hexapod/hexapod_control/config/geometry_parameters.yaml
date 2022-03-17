@@ -1,14 +1,14 @@
 # Update these values based on hexapod.urdf.xacro or other way around
 base:
-  radius: 0.08 # m
-  height: 0.04 # m
-  z_offset: 0.01 # m
-coxa_length: 0.01 # m
-femur_length: 0.04 # m
-tibia_length: 0.08 # m
+  radius: 0.08 # meters
+  height: 0.04 # meters
+  z_offset: 0.01 # meters
+coxa_length: 0.01 # meters
+femur_length: 0.04 # meters
+tibia_length: 0.08 # meters
 
 foot:
-  radius: 0.165 # m
+  radius: 0.165 # TODO: remove this so it's no longer hard-coded
 leg_L1:
   hip_angle: 120 # degrees
 leg_R1:
