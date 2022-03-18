@@ -7,8 +7,6 @@ coxa_length: 0.01 # meters
 femur_length: 0.04 # meters
 tibia_length: 0.08 # meters
 
-foot:
-  radius: 0.165 # TODO: remove this so it's no longer hard-coded
 leg_L1:
   hip_angle: 120 # degrees
 leg_R1:
