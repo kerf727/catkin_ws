@@ -61,7 +61,7 @@ namespace hexapod_control
             KDL::ChainIkSolverPos_LMA posSolver(chain, weights);
             std::vector<double> initial_state = req.initial_state;
 
-            KDL::JntArray jntArray = KDL::JntArray(3);
+            KDL::JntArray jntArray = KDL::JntArray(3); // initial_state.size() might be more robust
             jntArray.data = Eigen::Map<const Eigen::VectorXd>(initial_state.data(), initial_state.size());
 
             ROS_DEBUG("Parsing rotation...");
@@ -76,7 +76,7 @@ namespace hexapod_control
             ROS_DEBUG("Generating goal...");
             KDL::Frame targetFrame = KDL::Frame(targetrot, targetpos);
 
-            KDL::JntArray jntSol = KDL::JntArray(3);
+            KDL::JntArray jntSol = KDL::JntArray(3); // initial_state.size() might be more robust
             ROS_DEBUG("[%f, %f, %f]; [[%f, %f, %f], [%f, %f, %f], [%f, %f, %f]]",
                         targetpos.data[0], targetpos.data[1], targetpos.data[2],
                         rotx.data[0], roty.data[0], rotz.data[0],
