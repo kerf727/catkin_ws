@@ -12,6 +12,7 @@
     <xacro:property name="coxa_mass"    value="0.1"/>
     <xacro:property name="femur_mass"   value="0.4"/>
     <xacro:property name="tibia_mass"   value="0.8"/>
+    <!-- <xacro:property name="foot_mass"    value="0.01"/> -->
     <xacro:property name="inertia"      value="0.1"/>
     <xacro:property name="L1_angle"     value="${2*pi/3}"/>
     <xacro:property name="R1_angle"     value="${pi/3}"/>
@@ -111,6 +112,14 @@
 
         <link name="${robot_name}/${prefix}_foot_link"/>
 
+        <!-- <link name="${robot_name}/${prefix}_foot_link">
+            <inertial>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+                <mass value="${foot_mass}"/>
+                <inertia ixx="${inertia}" iyy="${inertia}" izz="${inertia}" ixy="0.0" ixz="0.0" iyz="0.0"/>
+            </inertial>
+        </link> -->
+
         <!-- Joints -->
         
         <joint name="${prefix}_hip_joint" type="revolute">
@@ -145,6 +154,15 @@
             <parent link="${robot_name}/${prefix}_tibia_link"/>
             <child link="${robot_name}/${prefix}_foot_link"/>
         </joint>
+
+        <!-- <joint name="${prefix}_foot_joint" type="revolute">
+            <origin xyz="0 0 ${tibia_length}" rpy="0 0 0"/>
+            <parent link="${robot_name}/${prefix}_tibia_link"/>
+            <child link="${robot_name}/${prefix}_foot_link"/>
+            <axis xyz="0 0 1"/>
+            <limit lower="0" upper="0" effort="30" velocity="0"/>
+            <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
+        </joint> -->
 
         <!-- Gazebo Collision -->
 
