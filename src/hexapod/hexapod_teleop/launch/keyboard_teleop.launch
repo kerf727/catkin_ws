@@ -1,8 +1,6 @@
 <launch>
-  <!-- hexapod_teleop_key already has its own built in velocity smoother -->
-  <node pkg="hexapod_teleop" type="hexapod_teleop_key" name="hexapod_teleop_keyboard" output="screen">
+  <node name="hexapod_teleop_key" pkg="hexapod_teleop" type="hexapod_teleop_key" output="screen">
     <param name="pos_scale" value="1.0" type="double"/>
     <param name="rot_scale" value="1.0" type="double"/>
-    <!-- <remap from="hexapod_teleop_keyboard/cmd_vel" to="cmd_vel_mux/input/teleop"/> -->
   </node>
 </launch>

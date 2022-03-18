@@ -24,8 +24,8 @@ public:
         this->joystickSubscriber = node.subscribe<sensor_msgs::Joy>("joy", 10, &TeleopHexapod::joystickCB, this);
 
         ROS_INFO("Publishing Teleop Data...");
-        this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/twist", 1);
-        this->buttonPublisher = node.advertise<std_msgs::Bool>("hexapod/button", 1);
+        this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/teleop/twist", 1);
+        this->buttonPublisher = node.advertise<std_msgs::Bool>("hexapod/teleop/button", 1);
 
         timer = node.createTimer(ros::Duration(0.1), boost::bind(&TeleopHexapod::publish, this));
 
@@ -60,8 +60,10 @@ void TeleopHexapod::joystickCB(const sensor_msgs::JoyConstPtr& msg)
     {
         dirty = true;
     }
-    ROS_INFO("b: %d, last_b: %d", B_state, last_B_state);
     last_B_state = B_state;
+
+    ROS_INFO("Lx: %f, Ly: %f, Rx: %f, B: %d",
+        twist_msg.linear.x, twist_msg.linear.y, twist_msg.angular.x, B_state);
 }
 
 void TeleopHexapod::publish()

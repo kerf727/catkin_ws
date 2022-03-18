@@ -1,5 +1,5 @@
 <launch>
-  <node pkg="hexapod_teleop" type="hexapod_teleop_joy" name="hexapod_teleop_joystick" output="screen"/>
+  <node name="hexapod_teleop_joy" pkg="hexapod_teleop" type="hexapod_teleop_joy" output="screen"/>
 
   <node pkg="joy" type="joy_node" name="joystick"/>
 </launch>
