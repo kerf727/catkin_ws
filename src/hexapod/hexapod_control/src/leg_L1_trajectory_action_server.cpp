@@ -1,12 +1,14 @@
-#include "actionlib/server/simple_action_server.h"
 #include "actionlib/client/simple_action_client.h"
 #include "hexapod_control/SetPoseAction.h"
 #include "hexapod_control/GaitAction.h"
 #include "hexapod_control/Pose.h"
+#include "hexapod_control/SolveFKPose.h"
 #include "std_msgs/Float64.h"
 #include "std_msgs/Bool.h"
+#include "gazebo_msgs/GetLinkState.h"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/Vector3.h"
+#include "sensor_msgs/JointState.h"
 #include "math.h"
 
 std::string leg_name = "L1";
@@ -14,28 +16,43 @@ std::string leg_name = "L1";
 class SetTrajectoryAction
 {
 public:
-    SetTrajectoryAction(std::string name):
-        server(node, name, boost::bind(&SetTrajectoryAction::executeCB, this, _1), false),
-        client("leg_" + leg_name + "_pose_action", true),
-        actionName(name)
+    SetTrajectoryAction() :
+        client("leg_" + leg_name + "_pose_action", true)
     {
         this->node = node;
+
+		ROS_INFO("Subscribing to Gait Controller and Teleop...");
+		this->strideTimeSubscriber = node.subscribe("/hexapod/gait/stride_time", 10, &SetTrajectoryAction::strideTimeCB, this);
+		this->strideHeightSubscriber = node.subscribe("/hexapod/gait/stride_height", 10, &SetTrajectoryAction::strideHeightCB, this);
+		this->strideLengthSubscriber = node.subscribe("/hexapod/gait/stride_length", 10, &SetTrajectoryAction::strideLengthCB, this);
+		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
+		this->phaseSubscriber = node.subscribe("/hexapod/gait/phase_" + leg_name, 10, &SetTrajectoryAction::phaseCB, this);
+		this->commandSubscriber = node.subscribe("/hexapod/gait/command", 10, &SetTrajectoryAction::commandCB, this);
 
         ROS_INFO("Waiting for Pose State Server...");
         this->client.waitForServer(ros::Duration(30));
 
-		ROS_INFO("Subscribing to Gait Controller and Teleop...");
-		this->velocitySubscriber = node.subscribe("/hexapod/gait/velocity", 10, &SetTrajectoryAction::velocityCB, this);
-		this->strideTimeSubscriber = node.subscribe("/hexapod/gait/stride_time", 10, &SetTrajectoryAction::strideTimeCB, this);
-		this->strideHeightSubscriber = node.subscribe("/hexapod/gait/stride_height", 10, &SetTrajectoryAction::strideHeightCB, this);
-		this->strideLengthSubscriber = node.subscribe("/hexapod/gait/stride_length", 10, &SetTrajectoryAction::strideLengthCB, this);
-        this->stopCommandSubscriber = node.subscribe("/hexapod/gait/stop", 10, &SetTrajectoryAction::stopCommandCB, this);
-		this->speedSubscriber = node.subscribe("/hexapod/gait/speed", 10, &SetTrajectoryAction::speedCB, this);
-		this->yawSubscriber = node.subscribe("/hexapod/gait/yaw", 10, &SetTrajectoryAction::yawCB, this);
-		this->yawAngleSubscriber = node.subscribe("/hexapod/gait/yaw_angle", 10, &SetTrajectoryAction::yawAngleCB, this);
-		
-		ROS_INFO("Starting...");
-		server.start();
+        ROS_INFO("Initializing constants...");
+        node.getParam("/hexapod/geometry/coxa_length", coxa_length);
+        node.getParam("/hexapod/geometry/femur_length", femur_length);
+        node.getParam("/hexapod/geometry/tibia_length", tibia_length);
+        node.getParam("/hexapod/geometry/base/radius", base_radius);
+        node.getParam("/hexapod/geometry/base/height", base_height);
+        node.getParam("/hexapod/geometry/leg_" + leg_name + "/hip_angle", hip_angle);
+        hip_angle = hip_angle*M_PI/180; // convert to radians
+
+        std::tie(dw, dcw) = calcStepRadius(base_height); // TODO: make base_height variable
+     
+        ROS_INFO("Subscribing to Gazebo GetLinkState service");
+        this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
+
+        ROS_INFO("Subscribing to Joint States...");
+        this->jointStateSubscriber = node.subscribe("/hexapod/joint_states", 10, &SetTrajectoryAction::jointStatesCB, this);
+        
+        ROS_INFO("Subscribing to FKPoseSolver service...");
+        this->fkClient = node.serviceClient<hexapod_control::SolveFKPose>("/hexapod/leg_L1/fk");
+
+        ROS_INFO("Leg %s trajectory action server ready.\n", leg_name.c_str());
     }
 
 	~SetTrajectoryAction()
@@ -43,65 +60,42 @@ public:
 		this->node.shutdown();
 	}
 
-	void executeCB(const hexapod_control::GaitGoalConstPtr &goal)
+	void commandCB(const geometry_msgs::Vector3ConstPtr& msg)
 	{
-		double start = ros::Time::now().toSec();
-
-		this->gait_mode = goal->gait_mode;
-		this->duty_factor = goal->duty_factor;
-		this->initial_phase = goal->initial_phase;
+		this->speed = msg->x;
+		this->yaw = msg->y;
+		this->yaw_angle = msg->z;
+        
+        double start = ros::Time::now().toSec();
 		double eps = 0.05;
 		
-		int state = 0;
-        bool preempted = false;
-        stop = false;
-        initialized = false;
+        // initialized = false;
 
 		double t, elapsed, last_elapsed, Tc;
-		steps = 0;
 		hexapod_control::Pose target_pose;
 
 		current_phase = initial_phase;
 
-        node.getParam("/hexapod/geometry/femur_length", femur_length);
-        node.getParam("/hexapod/geometry/tibia_length", tibia_length);
-        node.getParam("/hexapod/geometry/coxa_length", coxa_length);
-        node.getParam("/hexapod/geometry/base/radius", base_radius);
-        node.getParam("/hexapod/geometry/base/height", base_height);
-        node.getParam("/hexapod/geometry/foot/radius", foot_radius);
-        node.getParam("/hexapod/geometry/leg_" + leg_name + "/hip_angle", hip_angle);
-        hip_angle = hip_angle*M_PI/180; // convert to radians
-
-        double dw, dcw;
-        std::tie(dw, dcw) = calcStepRadius(base_height); // TODO: make base_height variable
-
-        // Calculate current foot position
-        geometry_msgs::Point ci;
-        ci.x = ; // TODO
-        ci.y = ;
-        ci.z = -base_height;
+        // Get current foot position
+        geometry_msgs::Point ci = getFootPos();
+        ROS_INFO("time 0 ci: (%f, %f, %f)", ci.x, ci.y, ci.z);
+        ROS_INFO("dw: %f, dcw: %f\n", dw, dcw);
 
 		ros::Rate rate(50);
 		while (true)
 		{
-            // Check if preempted or canceled
-            if (server.isPreemptRequested() || !ros::ok())
-            {
-                ROS_INFO("Trajectory action preempted, ending trajectory...");
-                preempted = true;
-            }
-
             elapsed = ros::Time::now().toSec() - start;
+            // TODO: make stride_time based on stride_length?
 			t = elapsed + initial_phase*stride_time; // account for initial_phase
             Tc = elapsed - last_elapsed; // control interval
             last_elapsed = elapsed;
 
             // Calculate the current phase
 			current_phase = fmod(t/stride_time, 1.0);
-            if (!initialized && current_phase >= duty_factor)
-            {
-                initialized = true;
-            }
+            // if (!initialized && current_phase >= duty_factor)
+            // {
+            //     initialized = true;
+            // }
 
             // Calculate distance from body center to motion center
             double rm;
@@ -115,7 +109,7 @@ public:
             }
 
             // phi: current angle of the line connecting motion center and body center
-            // geometry_msgs::Point ux; // unit vector in x dir
+            // geometry_msgs::Point ux; // unit vector in body CF X-axis
             // ux.x = 1.0; ux.y = 0.0; ux.z = 0.0;
             // double phi = calcXYAngle(ci, ux);
             double phi = yaw_angle; // TODO: confirm if this can just be desired yaw angle
@@ -134,7 +128,7 @@ public:
             cw.z = -base_height;
 
             // Calculate current foot center
-            // phi: current angle of the line connecting motion center and foot center
+            // phi_i: current angle of the line connecting motion center and foot position
             geometry_msgs::Point ux; // unit vector in body CF X-axis
             ux.x = 1.0; // TODO: is this in body CF or something wrong like foot or hip CF?
             ux.y = 0.0;
@@ -146,7 +140,7 @@ public:
             double rmi = sqrt(pow(cm_to_ci.x, 2) + pow(cm_to_ci.y, 2));
 
             // theta: angle from center to edge of foot WS wrt cm
-            double theta = acos(1 - 0.125*pow(dw/foot_radius, 2));
+            double theta = acos(1 - 0.125*pow(dw/(base_radius + dcw), 2));
 
             geometry_msgs::Point AEP;
             geometry_msgs::Point cm_to_cw; // vector from cm to cw
@@ -201,14 +195,10 @@ public:
                 stage = "Transfer Phase";
             }
 
-            ROS_INFO("stage: %s, phase: %f, vel: %f", stage.c_str(), current_phase, velocity);
-            ROS_INFO("ci: (%f, %f, %f)", ci.x, ci.y, ci.z);
-            ROS_INFO("cm: (%f, %f, %f)", cm.x, cm.y, cm.z);
-
-            if ((stop || preempted) && stage.compare("Support Phase") == 0)
-            {
-                break;
-            }
+            ROS_INFO("stage: %s, phase: %f", stage.c_str(), current_phase);
+            ROS_INFO("speed: %f, yaw: %f, yaw_angle : %f", speed, yaw, yaw_angle);
+            ROS_INFO("cm: (%f, %f);    cw: (%f, %f);    ci: (%f, %f, %f)\n",
+                cm.x, cm.y, cw.x, cw.y, ci.x, ci.y, ci.z);
 
 			// Build message
 			target_pose.x = ci.x;
@@ -227,31 +217,8 @@ public:
 				boost::bind(&SetTrajectoryAction::activeCB, this),
 				boost::bind(&SetTrajectoryAction::publishFeedback, this, _1));
 
-            // Publish feedback
-			this->actionFeedback.current_phase = current_phase;
-            this->actionFeedback.stage = stage;
-			this->actionFeedback.current_pose = current_pose;
-			this->actionFeedback.target_pose = target_pose;
-			server.publishFeedback(this->actionFeedback);
-
-            if (current_phase == initial_phase)
-            {
-                steps++;
-            }
-
 			rate.sleep();
 		}
-
-		// Publish result
-        this->actionResult.steps_taken = steps;
-        if (preempted)
-        {
-            server.setPreempted(this->actionResult);
-        }
-        else
-        {
-		    server.setSucceeded(this->actionResult);
-        }
 	}
 
 	void publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback)
@@ -270,11 +237,6 @@ public:
 
 	}
 
-	void velocityCB(const std_msgs::Float64ConstPtr& msg)
-	{
-		this->velocity = msg->data;
-	}
-
     void strideTimeCB(const std_msgs::Float64ConstPtr& msg)
 	{
 		this->stride_time = msg->data;
@@ -290,25 +252,30 @@ public:
 		this->stride_length = msg->data;
 	}
 
-    void stopCommandCB(const std_msgs::BoolConstPtr& msg)
+    void dutyFactorCB(const std_msgs::Float64ConstPtr& msg)
 	{
-		this->stop = msg->data;
+		this->duty_factor = msg->data;
 	}
 
-    void speedCB(const std_msgs::Float64ConstPtr& msg)
+    void phaseCB(const std_msgs::Float64ConstPtr& msg)
 	{
-		this->speed = msg->data;
+		this->initial_phase = msg->data;
 	}
 
-    void yawCB(const std_msgs::Float64ConstPtr& msg)
-	{
-		this->yaw = msg->data;
-	}
-
-    void yawAngleCB(const std_msgs::Float64ConstPtr& msg)
-	{
-		this->yaw_angle = msg->data;
-	}
+    geometry_msgs::Point getFootPos()
+    {
+        // Send FK request to service
+        hexapod_control::SolveFKPose fkMsg;
+        fkMsg.request.joint_positions = current_state.position;
+        fkClient.call(fkMsg);
+        
+        geometry_msgs::Point foot;
+        foot.x = fkMsg.response.solution.x;
+        foot.y = fkMsg.response.solution.y;
+        foot.z = fkMsg.response.solution.z;
+        
+        return foot;
+    }
 
     geometry_msgs::Point getHipPos()
     {
@@ -350,31 +317,58 @@ public:
         return z_next;
     }
 
+    void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
+    {
+        sensor_msgs::JointState temp = *msg.get();
+        int hip_index, knee_index, ankle_index;
+        for (int i = 0; i < temp.name.size(); ++i)
+        {
+            std::string name_i = temp.name[i];
+            if (name_i.find(leg_name) != std::string::npos)
+            {
+                if (name_i.find("hip") != std::string::npos)
+                {
+                    hip_index = i;
+                }
+                else if (name_i.find("knee") != std::string::npos)
+                {
+                    knee_index = i;
+                }
+                else if (name_i.find("ankle") != std::string::npos)
+                {
+                    ankle_index = i;
+                }
+            }
+        }
+
+        this->current_state.name     = {temp.name[hip_index],     temp.name[knee_index],     temp.name[ankle_index]};
+        this->current_state.position = {temp.position[hip_index], temp.position[knee_index], temp.position[ankle_index]};
+        this->current_state.velocity = {temp.velocity[hip_index], temp.velocity[knee_index], temp.velocity[ankle_index]};
+        this->current_state.effort   = {temp.effort[hip_index],   temp.effort[knee_index],   temp.effort[ankle_index]};
+    }
+
 private:
-	std::string actionName;
 	ros::NodeHandle node;
-	actionlib::SimpleActionServer<hexapod_control::GaitAction> server;
 	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client;
-	hexapod_control::GaitFeedback actionFeedback;
-	hexapod_control::GaitResult actionResult;
-	ros::Subscriber velocitySubscriber;
+    ros::Subscriber jointStateSubscriber;
 	ros::Subscriber strideTimeSubscriber;
     ros::Subscriber strideHeightSubscriber;
     ros::Subscriber strideLengthSubscriber;
-    ros::Subscriber stopCommandSubscriber;
-    ros::Subscriber speedSubscriber;
-    ros::Subscriber yawSubscriber;
-    ros::Subscriber yawAngleSubscriber;
-	hexapod_control::Pose current_pose;
-    std::string gait_mode;
-	double initial_phase, current_phase, stride_time, stride_height, stride_length;
+    ros::Subscriber dutyFactorSubscriber;
+    ros::Subscriber phaseSubscriber;
+    ros::Subscriber commandSubscriber;
+    ros::ServiceClient linkStateClient;
+    ros::ServiceClient fkClient;
+    hexapod_control::Pose current_pose;
+	double initial_phase, current_phase;
     double speed, yaw, yaw_angle;
-	double duty_factor, velocity, heading;
+	double stride_time, stride_height, stride_length, duty_factor;
+    sensor_msgs::JointState current_state;
     geometry_msgs::Point hip;
-    double base_radius, base_height, foot_radius, hip_angle, femur_length, tibia_length, coxa_length;
-    int steps = 0;
-    bool stop = false;
-    bool initialized = false;
+    double base_radius, base_height, hip_angle;
+    double femur_length, tibia_length, coxa_length;
+    double dw, dcw;
+    // bool initialized = false;
     std::string stage;
     double inf = 1e6; // approximate infinity. increase if necessary
 };
@@ -385,7 +379,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "leg_" + leg_name + "_trajectory_action");
     ROS_INFO("Initialized ros...");
 
-    SetTrajectoryAction actionServer("leg_" + leg_name + "_trajectory_action");
+    SetTrajectoryAction trajectoryActionServer;
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;

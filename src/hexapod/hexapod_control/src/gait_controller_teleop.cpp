@@ -12,26 +12,26 @@
 class GaitController
 {
 public:
-    GaitController(std::string name):
-        L1_client("leg_L1_trajectory_action", true),
-        L2_client("leg_L2_trajectory_action", true),
-        L3_client("leg_L3_trajectory_action", true),
-        R1_client("leg_R1_trajectory_action", true),
-        R2_client("leg_R2_trajectory_action", true),
-        R3_client("leg_R3_trajectory_action", true)
+    GaitController()
     {
         this->node = node;
 
         ROS_INFO("Subscribing to Teleop...");
-		this->twistSubscriber = node.subscribe("/hexapod/twist", 10, &GaitController::twistCB, this);
-		this->buttonSubscriber = node.subscribe("/hexapod/button", 10, &GaitController::buttonCB, this);
+		this->twistSubscriber = node.subscribe("/hexapod/teleop/twist", 10, &GaitController::twistCB, this);
+		this->buttonSubscriber = node.subscribe("/hexapod/teleop/button", 10, &GaitController::buttonCB, this);
 		
         ROS_INFO("Publishing to Trajectory Action Servers...");
-        this->velocityPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/velocity", 1);
         this->strideTimePublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_time", 1);
         this->strideHeightPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_height", 1);
         this->strideLengthPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_length", 1);
-        this->stopCommandPublisher = node.advertise<std_msgs::Bool>("/hexapod/gait/stop", 1);
+        this->dutyFactorPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/duty_factor", 1);
+        this->phaseL1Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L1", 1);
+        this->phaseL2Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L2", 1);
+        this->phaseL3Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L3", 1);
+        this->phaseR1Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_R1", 1);
+        this->phaseR2Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_R2", 1);
+        this->phaseR3Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_R3", 1);
+        this->commandPublisher = node.advertise<geometry_msgs::Vector3>("/hexapod/gait/command", 1);
         
         // Initialize subscribed variables
         // TODO: Remove this section? Does this lead to weird startup behavior?
@@ -39,16 +39,12 @@ public:
         yaw = 0.0;
         yaw_angle = 0.0;
 
+        B_button = false;
+        gait_type = "ripple";
+        gait_counter = 0;
+
         ROS_INFO("Subscribing to Gazebo GetLinkState service");
         this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
-
-        ROS_INFO("Waiting for Leg Trajectory Servers...");
-        this->L1_client.waitForServer(ros::Duration(30));
-        this->L2_client.waitForServer(ros::Duration(30));
-        this->L3_client.waitForServer(ros::Duration(30));
-        this->R1_client.waitForServer(ros::Duration(30));
-        this->R2_client.waitForServer(ros::Duration(30));
-        this->R3_client.waitForServer(ros::Duration(30));
 
         ROS_INFO("Gait controller ready.");
     }
@@ -69,14 +65,6 @@ public:
 		double linearY = msg->linear.y;
 		double angular = msg->angular.x;
 
-        // Calculate gait parameters
-        int numSteps;
-        double lin_acc, ang_acc;
-        double duty_factor, stride_time, stride_height, stride_length;
-        double phase_L1, phase_L2, phase_L3, phase_R1, phase_R2, phase_R3;
-        std::vector<double> relative_phases;
-
-        int gait_counter = 0;
         if (B_button)
         {
             gait_counter += 1;
@@ -86,22 +74,24 @@ public:
             }
         }
 
-        std::string gait_type = "ripple";
         switch(gait_counter)
         {
             case(0):
                 gait_type = "ripple";
+                break;
             case(1):
                 gait_type = "tripod";
+                break;
             case(2):
                 gait_type = "wave";
+                break;
         }
 
         // Get parameters from parameter server
         node.getParam("/hexapod/gait/" + gait_type + "/max_speed", max_speed);
         node.getParam("/hexapod/gait/" + gait_type + "/max_yaw", max_yaw);
-        node.getParam("/hexapod/gait/" + gait_type + "/lin_acc", lin_acc);
-        node.getParam("/hexapod/gait/" + gait_type + "/ang_acc", ang_acc);
+        // node.getParam("/hexapod/gait/" + gait_type + "/lin_acc", lin_acc);
+        // node.getParam("/hexapod/gait/" + gait_type + "/ang_acc", ang_acc);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_time", stride_time);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_length", stride_length);
@@ -179,18 +169,7 @@ public:
             yaw_angle = max_yaw_angle;
         }
 
-        // Get initial position
-        geometry_msgs::Point initial_pos = GetPosition();
-        double initial_angle = GetOrientation();
-
-        // Get current time
-        double start = ros::Time::now().toSec();
-
-        // Publish initial gait parameters
-        double velocity = 0.0;
-        std_msgs::Float64 velocityMsg;
-        velocityMsg.data = velocity;
-        this->velocityPublisher.publish(velocityMsg);
+        // Publish gait parameters
 
         std_msgs::Float64 strideTimeMsg;
         strideTimeMsg.data = stride_time;
@@ -204,371 +183,39 @@ public:
         strideLengthMsg.data = stride_length;
         this->strideLengthPublisher.publish(strideLengthMsg);
 
-        std_msgs::Bool stopCommand;
-        stopCommand.data = true;
+        std_msgs::Float64 dutyFactorMsg;
+        dutyFactorMsg.data = duty_factor;
+        this->dutyFactorPublisher.publish(dutyFactorMsg);
 
-        // Send goals to trajectory servers
-        ROS_INFO("Sending goal to leg trajectories...");
-        hexapod_control::GaitGoal gaitAction;
-        gaitAction.gait_mode = gait_mode;
-        gaitAction.duty_factor = duty_factor;
-        gaitAction.initial_phase = phase_L1;
-        this->L1_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::L1Result, this, _1, _2),
-            boost::bind(&GaitController::L1Active, this),
-            boost::bind(&GaitController::L1Feedback, this, _1));
-        gaitAction.initial_phase = phase_L2;
-        this->L2_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::L2Result, this, _1, _2),
-            boost::bind(&GaitController::L2Active, this),
-            boost::bind(&GaitController::L2Feedback, this, _1));
-        gaitAction.initial_phase = phase_L3;
-        this->L3_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::L3Result, this, _1, _2),
-            boost::bind(&GaitController::L3Active, this),
-            boost::bind(&GaitController::L3Feedback, this, _1));
-        gaitAction.initial_phase = phase_R1;
-        this->R1_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::R1Result, this, _1, _2),
-            boost::bind(&GaitController::R1Active, this),
-            boost::bind(&GaitController::R1Feedback, this, _1));
-        gaitAction.initial_phase = phase_R2;
-        this->R2_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::R2Result, this, _1, _2),
-            boost::bind(&GaitController::R2Active, this),
-            boost::bind(&GaitController::R2Feedback, this, _1));
-        gaitAction.initial_phase = phase_R3;
-        this->R3_client.sendGoal(gaitAction,
-            boost::bind(&GaitController::R3Result, this, _1, _2),
-            boost::bind(&GaitController::R3Active, this),
-            boost::bind(&GaitController::R3Feedback, this, _1));
+        std_msgs::Float64 phaseL1Msg;
+        phaseL1Msg.data = phase_L1;
+        this->phaseL1Publisher.publish(phaseL1Msg);
 
-        // Start gait loop
-        ROS_INFO("Starting gait...");
-        ros::Rate rate(50);
-        int stage = 0; 
-        double traveled, stride, ramp_time;
-        bool preempted = false;
-        bool aborted = false;
-        std::string description = "Ramping up.";
+        std_msgs::Float64 phaseL2Msg;
+        phaseL2Msg.data = phase_L2;
+        this->phaseL2Publisher.publish(phaseL2Msg);
 
-        ROS_INFO("Ramp up stage.");
-        while (true)
-        {
-            // Calculate elapsed time
-            double elapsed = ros::Time::now().toSec() - start;
+        std_msgs::Float64 phaseL3Msg;
+        phaseL3Msg.data = phase_L3;
+        this->phaseL3Publisher.publish(phaseL3Msg);
 
-            ROS_INFO("traveled: %f, speed: %f", traveled, speed);
+        std_msgs::Float64 phaseR1Msg;
+        phaseR1Msg.data = phase_R1;
+        this->phaseR1Publisher.publish(phaseR1Msg);
 
-            // Check if preempted
-            if (!ros::ok())
-            {
-                ROS_INFO("Gait action aborted, ending gait...");
-                aborted = true;
-                stage = 2;
-                description = "Slowing down.";
-            }
+        std_msgs::Float64 phaseR2Msg;
+        phaseR2Msg.data = phase_R2;
+        this->phaseR2Publisher.publish(phaseR2Msg);
 
-            if (gait_mode == "Strafe")
-            {
-                double distance_traveled, ramp_distance;
+        std_msgs::Float64 phaseR3Msg;
+        phaseR3Msg.data = phase_R3;
+        this->phaseR3Publisher.publish(phaseR3Msg);
 
-                // Calculate distance traveled
-                geometry_msgs::Point pos = GetPosition();
-                distance_traveled = sqrt(pow(pos.x - initial_pos.x, 2) + 
-                                         pow(pos.y - initial_pos.y, 2));
-                traveled = distance_traveled;
-                ROS_INFO("cur: (%f, %f), ini: (%f, %f), dt: %f", pos.x, pos.y, initial_pos.x, initial_pos.y, distance_traveled);
-
-                if (stage == 0) // Ramp-up stage
-                {
-                    // Ramping up
-                    if (velocity < speed)
-                    {
-                        velocity = velocity + elapsed*lin_acc;
-                        if (velocity > speed)
-                        {
-                            velocity = speed;
-                        }
-                        velocityMsg.data = velocity;
-                        this->velocityPublisher.publish(velocityMsg);
-                    }
-                    // Hit target velocity
-                    else
-                    {
-                        velocityMsg.data = speed;
-                        this->velocityPublisher.publish(velocityMsg);
-                        ramp_time = elapsed;
-                        ramp_distance = distance_traveled;
-                        ROS_INFO("RAMP DISTANCE: %f", ramp_distance);
-                        stage = 1;
-                        description = "Constant velocity.";
-                        ROS_INFO("Constant velocity stage.");
-                    }
-                }
-                else if (stage == 1) // Constant velocity stage
-                {
-                    velocityMsg.data = speed;
-                    this->velocityPublisher.publish(velocityMsg);
-                    if (distance_traveled >= speed - ramp_distance)
-                    {
-                        stage = 2;
-                        description = "Slowing down.";
-                        ROS_INFO("Slowing down stage.");
-                    }
-                }
-                else if (stage == 2) // Slow-down stage
-                {
-                    // Slowing down
-                    if (velocity > 0.0)
-                    {
-                        velocity = velocity - elapsed*lin_acc;
-                        if (velocity < 0.0)
-                        {
-                            velocity = 0.0;
-                        }
-                        velocityMsg.data = velocity;
-                        this->velocityPublisher.publish(velocityMsg);
-                    }
-                    // Hit zero velocity
-                    else
-                    {
-                        this->stopCommandPublisher.publish(stopCommand);
-                        stage = 3;
-                        description = "Stopping.";
-                        ROS_INFO("Stopping stage.");
-                    }
-                }
-                else if (stage == 3) // Stopping stage
-                {
-                    this->stopCommandPublisher.publish(stopCommand);
-                    if (!L1IsActive && !R1IsActive && !L2IsActive && !R2IsActive && !L3IsActive && !R3IsActive)
-                    {
-                        ROS_INFO("Stopped.");
-                        break;
-                    }
-                }
-            }
-            else if (gait_mode == "Rotate")
-            {
-                double angle_traveled, ramp_angle;
-                
-                // Calculate angle traveled
-                double current_angle = GetOrientation();
-                angle_traveled = abs(current_angle - initial_angle);
-                traveled = angle_traveled;
-
-                if (stage == 0) // Ramp-up stage
-                {
-                    // Ramping up
-                    if (abs(velocity) < yaw)
-                    {
-                        if (yaw > 0.0)
-                        {
-                            velocity += elapsed*ang_acc;
-                            if (velocity > yaw)
-                            {
-                                velocity = yaw;
-                            }
-                        }
-                        else
-                        {
-                            velocity -= elapsed*ang_acc;
-                            if (velocity < -yaw)
-                            {
-                                velocity = -yaw;
-                            }
-                        }
-                        velocityMsg.data = velocity;
-                        this->velocityPublisher.publish(velocityMsg);
-                    }
-                    // Hit target velocity
-                    else
-                    {
-                        if (yaw > 0.0)
-                        {
-                            velocityMsg.data = yaw;
-                        }
-                        else
-                        {
-                            velocityMsg.data = -yaw;
-                        }
-                        this->velocityPublisher.publish(velocityMsg);
-                        ramp_time = elapsed;
-                        ramp_angle = angle_traveled;
-                        stage = 1;
-                        description = "Constant velocity.";
-                        ROS_INFO("Constant velocity stage.");
-                    }
-                }
-                else if (stage == 1) // Constant velocity stage
-                {
-                    if (yaw > 0.0)
-                        {
-                            velocityMsg.data = yaw;
-                        }
-                        else
-                        {
-                            velocityMsg.data = -yaw;
-                        }
-                    this->velocityPublisher.publish(velocityMsg);
-                    if (angle_traveled >= abs(yaw) - ramp_angle)
-                    {
-                        stage = 2;
-                        description = "Slowing down.";
-                        ROS_INFO("Slowing down stage.");
-                    }
-                }
-                else if (stage == 2) // Slow-down stage
-                {
-                    // Slowing down
-                    if (abs(velocity) > 0.0)
-                    {
-                        if (yaw > 0.0)
-                        {
-                            velocity -= elapsed*ang_acc;
-                            if (velocity < 0.0)
-                            {
-                                velocity = 0.0;
-                            }
-                        }
-                        else
-                        {
-                            velocity += elapsed*ang_acc;
-                            if (velocity > 0.0)
-                            {
-                                velocity = 0.0;
-                            }
-                        }
-                        velocityMsg.data = velocity;
-                        this->velocityPublisher.publish(velocityMsg);
-                    }
-                    // Hit zero velocity
-                    else
-                    {
-                        this->stopCommandPublisher.publish(stopCommand);
-                        stage = 3;
-                        description = "Stopping.";
-                        ROS_INFO("Stopping stage.");
-                    }
-                }
-                else if (stage == 3) // Stopping stage
-                {
-                    this->stopCommandPublisher.publish(stopCommand);
-                    if (!L1IsActive && !R1IsActive && !L2IsActive && !R2IsActive && !L3IsActive && !R3IsActive)
-                    {
-                        ROS_INFO("Stopped.");
-                        break;
-                    }
-                }
-            }
-            else if (gait_mode == "Steer")
-            {
-                // TODO: Add Steer code
-            }
-            else if (gait_mode == "Stationary/Orientation")
-            {
-                // TODO: Add AIK code for Stationary/Position, Stationary/Orientation
-            }
-            else
-            {
-
-            }
-            
-            // ros::spinOnce();
-            
-            rate.sleep();
-        }
-    }
-
-    void L1Active()
-    {
-        L1IsActive = true;
-    }
-
-    void L1Feedback(const hexapod_control::GaitFeedback::ConstPtr &gaitFeedback)
-    {
-    }
-
-    void L1Result(const actionlib::SimpleClientGoalState &state,
-                  const hexapod_control::GaitResult::ConstPtr &gaitResult)
-    {
-        L1IsActive = false;
-    }
-
-    void L2Active()
-    {
-        L2IsActive = true;
-    }
-
-    void L2Feedback(const hexapod_control::GaitFeedback::ConstPtr &gaitFeedback)
-    {
-    }
-
-    void L2Result(const actionlib::SimpleClientGoalState &state,
-                  const hexapod_control::GaitResult::ConstPtr &gaitResult)
-    {
-        L2IsActive = false;
-    }
-    
-    void L3Active()
-    {
-        L3IsActive = true;
-    }
-
-    void L3Feedback(const hexapod_control::GaitFeedback::ConstPtr &gaitFeedback)
-    {
-    }
-
-    void L3Result(const actionlib::SimpleClientGoalState &state,
-                  const hexapod_control::GaitResult::ConstPtr &gaitResult)
-    {
-        L3IsActive = false;
-    }
-    
-    void R1Active()
-    {
-        R1IsActive = true;
-    }
-
-    void R1Feedback(const hexapod_control::GaitFeedback::ConstPtr &gaitFeedback)
-    {
-    }
-
-    void R1Result(const actionlib::SimpleClientGoalState &state,
-                  const hexapod_control::GaitResult::ConstPtr &gaitResult)
-    {
-        R1IsActive = false;
-    }
-
-    void R2Active()
-    {
-        R2IsActive = true;
-    }
-
-    void R2Feedback(const hexapod_control::GaitFeedback::ConstPtr &gaitFeedback)
-    {
-    }
-
-    void R2Result(const actionlib::SimpleClientGoalState &state,
-                  const hexapod_control::GaitResult::ConstPtr &gaitResult)
-    {
-        R2IsActive = false;
-    }
-
-    void R3Active()
-    {
-        R3IsActive = true;
-    }
-
-    void R3Feedback(const hexapod_control::GaitFeedback::ConstPtr &gaitFeedback)
-    {
-    }
-
-    void R3Result(const actionlib::SimpleClientGoalState &state,
-                  const hexapod_control::GaitResult::ConstPtr &gaitResult)
-    {
-        R3IsActive = false;
+        geometry_msgs::Vector3 commandMsg;
+        commandMsg.x = speed;
+        commandMsg.y = yaw;
+        commandMsg.z = yaw_angle;
+        this->commandPublisher.publish(commandMsg);
     }
 
     double mapRange(const double& inValue,
@@ -610,28 +257,25 @@ public:
 
 private:
     ros::NodeHandle node;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> L1_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> L2_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> L3_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> R1_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> R2_client;
-    actionlib::SimpleActionClient<hexapod_control::GaitAction> R3_client;
-    bool L1IsActive = false;
-    bool L2IsActive = false;
-    bool L3IsActive = false;
-    bool R1IsActive = false;
-    bool R2IsActive = false;
-    bool R3IsActive = false;
     ros::Subscriber twistSubscriber;
     ros::Subscriber buttonSubscriber;
-    ros::Publisher velocityPublisher;
     ros::Publisher strideTimePublisher;
     ros::Publisher strideHeightPublisher;
     ros::Publisher strideLengthPublisher;
-    ros::Publisher stopCommandPublisher;
+    ros::Publisher dutyFactorPublisher;
+    ros::Publisher phaseL1Publisher;
+    ros::Publisher phaseL2Publisher;
+    ros::Publisher phaseL3Publisher;
+    ros::Publisher phaseR1Publisher;
+    ros::Publisher phaseR2Publisher;
+    ros::Publisher phaseR3Publisher;
+    ros::Publisher commandPublisher;
     ros::ServiceClient linkStateClient;
-    std::string gait_mode;
-    geometry_msgs::Twist base_twist;
+    std::string gait_mode, gait_type;
+    int gait_counter;
+    double lin_acc, ang_acc;
+    double duty_factor, stride_time, stride_height, stride_length;
+    double phase_L1, phase_L2, phase_L3, phase_R1, phase_R2, phase_R3;
     double speed, yaw, yaw_angle;
     bool B_button;
     double max_speed, max_yaw, max_yaw_angle;
@@ -644,7 +288,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "gait_controller");
     ROS_INFO("Initialized ros...");
 
-    GaitController gait_controller("gait_controller");
+    GaitController gait_controller;
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;
