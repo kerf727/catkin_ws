@@ -59,7 +59,7 @@ public:
         // Make sure goal state is not current state
         if (calculateJointError() < this->eps)
         {
-            this->actionResult.result = currentState.position;
+            this->actionResult.result = current_state.position;
             this->actionResult.error = calculateJointError();
             this->actionResult.time = 0;
             server.setSucceeded(actionResult);
@@ -84,7 +84,7 @@ public:
                 return;
             }
 
-            this->actionFeedback.positions = currentState.position;
+            this->actionFeedback.positions = current_state.position;
             this->actionFeedback.error = calculateJointError();
             this->actionFeedback.time = ros::Time::now().toSec() - start;
             server.publishFeedback(this->actionFeedback);
@@ -93,7 +93,7 @@ public:
         }
 
         // Publish result
-        this->actionResult.result = currentState.position;
+        this->actionResult.result = current_state.position;
         this->actionResult.error = calculateJointError();
         this->actionResult.time = ros::Time::now().toSec() - start;
         if (this->actionResult.error < eps)
@@ -112,7 +112,7 @@ public:
     {
         // Send FK request to service
         hexapod_control::SolveFKPose fkMsg;
-        fkMsg.request.joint_positions = this->currentState.position;
+        fkMsg.request.joint_positions = this->current_state.position;
         fkClient.call(fkMsg);
 
         return fkMsg.response;
@@ -120,15 +120,15 @@ public:
 
     double calculateJointError()
     {
-        double hipError = this->hipTarget - currentState.position[0];
-        double kneeError = this->kneeTarget - currentState.position[1];
-        double ankleError = this->ankleTarget - currentState.position[2];
+        double hipError = this->hipTarget - current_state.position[0];
+        double kneeError = this->kneeTarget - current_state.position[1];
+        double ankleError = this->ankleTarget - current_state.position[2];
         return sqrt(pow(hipError, 2) + pow(kneeError, 2) + pow(ankleError, 2));
     }
 
     bool isRobotIdle()
     {
-        std::vector<double> velocity = this->currentState.velocity;
+        std::vector<double> velocity = this->current_state.velocity;
         double magnitude = 0;
         for (int i = 0; i < velocity.size(); ++i)
         {
@@ -162,10 +162,10 @@ public:
             }
         }
 
-        this->currentState.name     = {temp.name[hipIndex],     temp.name[kneeIndex],     temp.name[ankleIndex]};
-        this->currentState.position = {temp.position[hipIndex], temp.position[kneeIndex], temp.position[ankleIndex]};
-        this->currentState.velocity = {temp.velocity[hipIndex], temp.velocity[kneeIndex], temp.velocity[ankleIndex]};
-        this->currentState.effort   = {temp.effort[hipIndex],   temp.effort[kneeIndex],   temp.effort[ankleIndex]};
+        this->current_state.name     = {temp.name[hipIndex],     temp.name[kneeIndex],     temp.name[ankleIndex]};
+        this->current_state.position = {temp.position[hipIndex], temp.position[kneeIndex], temp.position[ankleIndex]};
+        this->current_state.velocity = {temp.velocity[hipIndex], temp.velocity[kneeIndex], temp.velocity[ankleIndex]};
+        this->current_state.effort   = {temp.effort[hipIndex],   temp.effort[kneeIndex],   temp.effort[ankleIndex]};
     }
 
 private:
@@ -179,7 +179,7 @@ private:
     ros::Publisher hipJointPublisher;
     ros::Publisher kneeJointPublisher;
     ros::Publisher ankleJointPublisher;
-    sensor_msgs::JointState currentState;
+    sensor_msgs::JointState current_state;
     sensor_msgs::JointState temp;
     double hipTarget;
     double kneeTarget;

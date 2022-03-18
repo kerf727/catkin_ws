@@ -43,7 +43,7 @@ public:
     {
         // Run IK to get joint positions
         hexapod_control::SolveIKPose ikMsg;
-        ikMsg.request.initial_state = this->currentState.position;
+        ikMsg.request.initial_state = this->current_state.position;
         ikMsg.request.goal = goal->goal;
 
         this->ikClient.call(ikMsg);
@@ -102,7 +102,7 @@ public:
         }
 
         // Publish result
-        hexapod_control::SolveFKPoseResponse fkResponse = getCurrentPose(this->currentState.position);
+        hexapod_control::SolveFKPoseResponse fkResponse = getCurrentPose(this->current_state.position);
         if (fkResponse.result == 0)
         {
             this->actionResult.final_pose = fkResponse.solution;
@@ -159,9 +159,9 @@ public:
 
     double calculateJointError()
     {
-        double hipError = this->hipTarget - currentState.position[0];
-        double kneeError = this->kneeTarget - currentState.position[1];
-        double ankleError = this->ankleTarget - currentState.position[2];
+        double hipError = this->hipTarget - current_state.position[0];
+        double kneeError = this->kneeTarget - current_state.position[1];
+        double ankleError = this->ankleTarget - current_state.position[2];
         return sqrt(pow(hipError, 2) + pow(kneeError, 2) + pow(ankleError, 2));
     }
 
@@ -175,7 +175,7 @@ public:
 
     bool isRobotIdle()
     {
-        std::vector<double> velocity = this->currentState.velocity;
+        std::vector<double> velocity = this->current_state.velocity;
         double magnitude = 0;
         for (int i = 0; i < velocity.size(); ++i)
         {
@@ -187,7 +187,7 @@ public:
 
     void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
     {
-        this->temp = *msg.get();
+        sensor_msgs::JointState temp = *msg.get();
         int hipIndex, kneeIndex, ankleIndex;
         for (int i = 0; i < temp.name.size(); ++i)
         {
@@ -209,10 +209,10 @@ public:
             }
         }
 
-        this->currentState.name = {temp.name[hipIndex], temp.name[kneeIndex], temp.name[ankleIndex]};
-        this->currentState.position = {temp.position[hipIndex], temp.position[kneeIndex], temp.position[ankleIndex]};
-        this->currentState.velocity = {temp.velocity[hipIndex], temp.velocity[kneeIndex], temp.velocity[ankleIndex]};
-        this->currentState.effort = {temp.effort[hipIndex], temp.effort[kneeIndex], temp.effort[ankleIndex]};
+        this->current_state.name = {temp.name[hipIndex], temp.name[kneeIndex], temp.name[ankleIndex]};
+        this->current_state.position = {temp.position[hipIndex], temp.position[kneeIndex], temp.position[ankleIndex]};
+        this->current_state.velocity = {temp.velocity[hipIndex], temp.velocity[kneeIndex], temp.velocity[ankleIndex]};
+        this->current_state.effort = {temp.effort[hipIndex], temp.effort[kneeIndex], temp.effort[ankleIndex]};
     }
 
 private:
@@ -225,8 +225,7 @@ private:
     ros::ServiceClient ikClient;
     ros::ServiceClient fkClient;
     ros::Subscriber jointStateSubscriber;
-    sensor_msgs::JointState currentState;
-    sensor_msgs::JointState temp;
+    sensor_msgs::JointState current_state;
     double hipTarget;
     double kneeTarget;
     double ankleTarget;
