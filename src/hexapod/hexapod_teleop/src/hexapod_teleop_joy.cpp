@@ -57,7 +57,7 @@ void TeleopHexapod::joystickCB(const sensor_msgs::JoyConstPtr& msg)
     last_twist_msg = twist_msg;
 
     B_state = msg->buttons[B];
-    if (B_state & !last_B_state)
+    if (B_state && !last_B_state)
     {
         dirty = true;
     }

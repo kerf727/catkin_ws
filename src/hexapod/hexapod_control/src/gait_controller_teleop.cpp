@@ -123,10 +123,13 @@ public:
         if ((linearX != 0.0 || linearY != 0.0) && angular == 0.0)
         {  
             gait_mode = "Strafe";
-            // TODO: Fix max of map input - can be larger than 1.0 when both contribute
+            // TODO: fix max of map input. can be larger than 1.0 when both contribute
             speed = mapRange(abs(linearX) + abs(linearY), 0.0, 1.0, 0.0, max_speed);
-            yaw = eps;
+            // TODO: make yaw such that desired max speed is met when strafing
             yaw_angle = atan2(linearY, linearX);
+            yaw = (yaw_angle <= 0.25*M_PI && yaw_angle >= -0.75*M_PI) ? eps : -eps;
+            // atan2 range is -ip to pi; yaw is positive if on bottom half of y = x line
+            // TODO: check if above is accurate
         }
         // Rotate (Rx only)
         else if (linearY == 0.0 && angular != 0.0)
