@@ -27,7 +27,8 @@ public:
         this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/teleop/twist", 1);
         this->buttonPublisher = node.advertise<std_msgs::Bool>("hexapod/teleop/button", 1);
 
-        timer = node.createTimer(ros::Duration(0.1), boost::bind(&TeleopHexapod::publish, this));
+        double publish_rate = 0.02; // 0.1 originally
+        timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&TeleopHexapod::publish, this));
 
         ROS_INFO("Teleop controller ready.\n");
     }
@@ -61,9 +62,6 @@ void TeleopHexapod::joystickCB(const sensor_msgs::JoyConstPtr& msg)
         dirty = true;
     }
     last_B_state = B_state;
-
-    ROS_INFO("Lx: %f, Ly: %f, Rx: %f, B: %d",
-        twist_msg.linear.x, twist_msg.linear.y, twist_msg.angular.x, B_state);
 }
 
 void TeleopHexapod::publish()
@@ -83,6 +81,9 @@ void TeleopHexapod::publish()
         button_msg.data = false;
     }
     buttonPublisher.publish(button_msg); // TODO: change to byte for more button data?
+
+    ROS_INFO("Lx: %f, Ly: %f, Rx: %f, B: %d",
+        last_twist_msg.linear.x, last_twist_msg.linear.y, last_twist_msg.angular.x, button_msg.data);
 }
 
 int main(int argc, char** argv)
