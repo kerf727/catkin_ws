@@ -35,9 +35,9 @@ public:
         
         // Initialize subscribed variables
         // TODO: Remove this section? Does this lead to weird startup behavior?
-        speed = 0.0;
-        yaw = 0.0;
-        yaw_angle = 0.0;
+        // speed = 0.0;
+        // yaw = 0.0;
+        // yaw_angle = 0.0;
 
         B_button = false;
         gait_type = "ripple";
@@ -123,12 +123,13 @@ public:
         if ((linearX != 0.0 || linearY != 0.0) && angular == 0.0)
         {  
             gait_mode = "Strafe";
+            // TODO: Fix max of map input - can be larger than 1.0 when both contribute
             speed = mapRange(abs(linearX) + abs(linearY), 0.0, 1.0, 0.0, max_speed);
-            yaw = 0.0;
+            yaw = eps;
             yaw_angle = atan2(linearY, linearX);
         }
         // Rotate (Rx only)
-        else if (linearX == 0.0 && linearY == 0.0 && angular != 0.0)
+        else if (linearY == 0.0 && angular != 0.0)
         {
             gait_mode = "Rotate";
             speed = 0.0;
@@ -138,6 +139,7 @@ public:
         // Steer (Ly and Rx)
         else if (linearY != 0.0 && angular != 0.0)
         {
+            // TODO: make this a separate mode controlled by a button? imagine pressing Ly and then suddenly pressing Rx
             gait_mode = "Steer";
             speed = mapRange(abs(linearY), 0.0, 1.0, 0.0, max_speed);
             yaw = mapRange(angular, -1.0, 1.0, -max_yaw, max_yaw);
@@ -150,8 +152,9 @@ public:
         // Default
         else
         {
+            gait_mode = "Default";
             speed = 0.0;
-            yaw = 0.0;
+            yaw = eps;
             yaw_angle = 0.0;
         }
 
@@ -164,10 +167,10 @@ public:
         {
             yaw = max_yaw;
         }
-        if (yaw_angle > max_yaw_angle)
-        {
-            yaw_angle = max_yaw_angle;
-        }
+
+        ROS_INFO("------------------------------------------------------------------------------------------------------");
+        ROS_INFO("mode: %s, speed: %f, yaw: %f, yaw_angle: %f\n",
+            gait_mode.c_str(), speed, yaw, yaw_angle);
 
         // Publish gait parameters
 
@@ -278,8 +281,8 @@ private:
     double phase_L1, phase_L2, phase_L3, phase_R1, phase_R2, phase_R3;
     double speed, yaw, yaw_angle;
     bool B_button;
-    double max_speed, max_yaw, max_yaw_angle;
-    double inf = 1e6; // approximate infinity. increase if necessary
+    double max_speed, max_yaw;
+    double eps = 1e-6;
 };
 
 int main(int argc, char **argv)
