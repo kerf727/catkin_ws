@@ -22,14 +22,6 @@ public:
 		
         ROS_INFO("Publishing to Trajectory Action Servers...");
         this->gaitModePublisher = node.advertise<std_msgs::String>("/hexapod/gait/gait_mode", 1);
-        this->strideHeightPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_height", 1);
-        this->dutyFactorPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/duty_factor", 1);
-        this->phaseL1Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L1", 1);
-        this->phaseL2Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L2", 1);
-        this->phaseL3Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L3", 1);
-        this->phaseR1Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_R1", 1);
-        this->phaseR2Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_R2", 1);
-        this->phaseR3Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_R3", 1);
         this->commandPublisher = node.advertise<geometry_msgs::Vector3>("/hexapod/gait/command", 1);
         
         // Initialize variables
@@ -84,16 +76,6 @@ public:
         // Get parameters from parameter server
         node.getParam("/hexapod/gait/" + gait_type + "/max_speed", max_speed);
         node.getParam("/hexapod/gait/" + gait_type + "/max_yaw", max_yaw);
-        node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
-        node.getParam("/hexapod/gait/" + gait_type + "/duty_factor", duty_factor);
-        node.getParam("/hexapod/gait/" + gait_type + "/phase/L1", phase_L1);
-        node.getParam("/hexapod/gait/" + gait_type + "/phase/L2", phase_L2);
-        node.getParam("/hexapod/gait/" + gait_type + "/phase/L3", phase_L3);
-        node.getParam("/hexapod/gait/" + gait_type + "/phase/R1", phase_R1);
-        node.getParam("/hexapod/gait/" + gait_type + "/phase/R2", phase_R2);
-        node.getParam("/hexapod/gait/" + gait_type + "/phase/R3", phase_R3);
-        // node.getParam("/hexapod/gait/" + gait_type + "/lin_acc", lin_acc);
-        // node.getParam("/hexapod/gait/" + gait_type + "/ang_acc", ang_acc);
 
         // Dead zone
         double deadzone = 0.0; // no deadzone necessary for SN30pro+
@@ -171,38 +153,6 @@ public:
         gaitModeMsg.data = gait_mode;
         this->gaitModePublisher.publish(gaitModeMsg);
 
-        std_msgs::Float64 strideHeightMsg;
-        strideHeightMsg.data = stride_height;
-        this->strideHeightPublisher.publish(strideHeightMsg);
-
-        std_msgs::Float64 dutyFactorMsg;
-        dutyFactorMsg.data = duty_factor;
-        this->dutyFactorPublisher.publish(dutyFactorMsg);
-
-        std_msgs::Float64 phaseL1Msg;
-        phaseL1Msg.data = phase_L1;
-        this->phaseL1Publisher.publish(phaseL1Msg);
-
-        std_msgs::Float64 phaseL2Msg;
-        phaseL2Msg.data = phase_L2;
-        this->phaseL2Publisher.publish(phaseL2Msg);
-
-        std_msgs::Float64 phaseL3Msg;
-        phaseL3Msg.data = phase_L3;
-        this->phaseL3Publisher.publish(phaseL3Msg);
-
-        std_msgs::Float64 phaseR1Msg;
-        phaseR1Msg.data = phase_R1;
-        this->phaseR1Publisher.publish(phaseR1Msg);
-
-        std_msgs::Float64 phaseR2Msg;
-        phaseR2Msg.data = phase_R2;
-        this->phaseR2Publisher.publish(phaseR2Msg);
-
-        std_msgs::Float64 phaseR3Msg;
-        phaseR3Msg.data = phase_R3;
-        this->phaseR3Publisher.publish(phaseR3Msg);
-
         geometry_msgs::Vector3 commandMsg;
         commandMsg.x = speed;
         commandMsg.y = yaw;
@@ -252,14 +202,6 @@ private:
     ros::Subscriber twistSubscriber;
     ros::Subscriber buttonSubscriber;
     ros::Publisher gaitModePublisher;
-    ros::Publisher strideHeightPublisher;
-    ros::Publisher dutyFactorPublisher;
-    ros::Publisher phaseL1Publisher;
-    ros::Publisher phaseL2Publisher;
-    ros::Publisher phaseL3Publisher;
-    ros::Publisher phaseR1Publisher;
-    ros::Publisher phaseR2Publisher;
-    ros::Publisher phaseR3Publisher;
     ros::Publisher commandPublisher;
     ros::ServiceClient linkStateClient;
     std::string gait_mode, gait_type;

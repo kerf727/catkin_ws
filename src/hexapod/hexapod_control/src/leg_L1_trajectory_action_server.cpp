@@ -24,9 +24,6 @@ public:
 
 		ROS_INFO("Subscribing to Gait Controller and Teleop...");
 		this->gaitModeSubscriber = node.subscribe("/hexapod/gait/gait_mode", 10, &SetTrajectoryAction::gaitModeCB, this);
-		this->strideHeightSubscriber = node.subscribe("/hexapod/gait/stride_height", 10, &SetTrajectoryAction::strideHeightCB, this);
-		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
-		this->phaseSubscriber = node.subscribe("/hexapod/gait/phase_" + leg_name, 10, &SetTrajectoryAction::phaseCB, this);
 		this->commandSubscriber = node.subscribe("/hexapod/gait/command", 10, &SetTrajectoryAction::commandCB, this);
 
         ROS_INFO("Waiting for Pose State Server...");
@@ -44,20 +41,32 @@ public:
         start = ros::Time::now().toSec();
 
         std::tie(dwi, dcw) = calcStepRadius(base_height); // TODO: make base_height variable
-        foot_radius = base_radius + dcw;
 
-        ci = initialFootPos(base_height); // initialize with current foot position
+        ci = getCw(base_height); // initialize with current foot position
+        // TODO: place ci at initial_phase position
         ROS_INFO("initial ci: (%f, %f, %f); dwi: %f, dcw: %f", ci.x, ci.y, ci.z, dwi, dcw);
 
-        current_phase = initial_phase;
+        // TODO: move B button code into here to update gait_type
+        std::string gait_type = "ripple";
+        node.getParam("/hexapod/gait/" + gait_type + "/phase/" + leg_name, initial_phase);
+        node.getParam("/hexapod/gait/" + gait_type + "/duty_factor", duty_factor);
+        node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
+
         if (initial_phase < duty_factor)
         {
             stage = "Support Phase";
+            support_phase = initial_phase/duty_factor;
+            transfer_phase = 0.0;
         }
         else
         {
             stage = "Transfer Phase";
+            support_phase = 0.0;
+            transfer_phase = (initial_phase - duty_factor)/(1.0 - duty_factor);
         }
+        ROS_INFO("initial_phase: %f, stage: %s", initial_phase, stage.c_str());
+
+        initialized = false;
      
         ROS_INFO("Subscribing to Gazebo GetLinkState service");
         this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
@@ -84,12 +93,8 @@ private:
 		const hexapod_control::SetPoseResult::ConstPtr& poseResult);
 	void activeCB();
     void gaitModeCB(const std_msgs::StringConstPtr& msg);
-    void strideHeightCB(const std_msgs::Float64ConstPtr& msg);
-    void dutyFactorCB(const std_msgs::Float64ConstPtr& msg);
-    void phaseCB(const std_msgs::Float64ConstPtr& msg);
     void commandCB(const geometry_msgs::Vector3ConstPtr& msg);
-    geometry_msgs::Point initialFootPos(const double& base_height);
-    geometry_msgs::Point getHipPos();
+    geometry_msgs::Point getCw(const double& base_height);
     std::tuple<double, double> calcStepRadius(const double& base_height);
     double calcXYAngle(const geometry_msgs::Point& from, const geometry_msgs::Point& to);
     double LPF1(const double& goal, const double& z_prev, const double& rate);
@@ -98,17 +103,12 @@ private:
 	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client;
     ros::Subscriber jointStateSubscriber;
 	ros::Subscriber gaitModeSubscriber;
-    ros::Subscriber strideTimeSubscriber;
-    ros::Subscriber strideHeightSubscriber;
-    ros::Subscriber strideLengthSubscriber;
-    ros::Subscriber dutyFactorSubscriber;
-    ros::Subscriber phaseSubscriber;
     ros::Subscriber commandSubscriber;
     ros::ServiceClient linkStateClient;
     ros::ServiceClient fkClient;
     hexapod_control::Pose current_pose;
     double start, t, elapsed, last_elapsed, Tc;
-	double initial_phase, current_phase;
+	double initial_phase;
     double speed, yaw, yaw_angle;
     std::string gait_mode;
 	double stride_time, stride_height, duty_factor;
@@ -117,9 +117,11 @@ private:
     double base_radius, base_height, hip_angle, foot_radius;
     double femur_length, tibia_length, coxa_length;
     double dwi, dcw;
-    // bool initialized = false;
+    double support_phase, transfer_phase, last_transfer_phase, phase_diff, lowering_rate;
+    bool initialized = false;
     std::string stage;
     double eps = 0.05;
+    double d_epsilon = 0.003;
 };
 
 void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
@@ -152,10 +154,7 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
 
     // Calculate center of foot workspace
     geometry_msgs::Point hip, cw;
-    hip = getHipPos();
-    cw.x = dcw*cos(hip_angle) + hip.x;
-    cw.y = dcw*sin(hip_angle) + hip.y;
-    cw.z = -base_height;
+    cw = getCw(base_height);
 
     // Calculate current foot center
     // phi_i: current angle of the line connecting motion center and foot position
@@ -166,7 +165,7 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     cm_to_ci.x = ci.x - cm.x;
     cm_to_ci.y = ci.y - cm.y;
     double phi_i = atan2(cm_to_ci.y, cm_to_ci.x);
-    double rmi = sqrt(pow(cm_to_ci.x, 2) + pow(cm_to_ci.y, 2));
+    // rmw = rmi always
 
     geometry_msgs::Point cm_to_cw;
     cm_to_cw.x = cw.x - cm.x;
@@ -204,8 +203,8 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
 
     elapsed = ros::Time::now().toSec() - start;
 
-    double support_phase, transfer_phase, transfer_time;
-    double alpha, d_AEP, d_transfer, z_mh, phi_plus, delta_phi;
+    double transfer_time;
+    double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, delta_phi;
     double tG_plus, delta_tG, k_plus, delta_x, delta_y;
 
     stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
@@ -215,69 +214,109 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     last_elapsed = elapsed;
     delta_phi = yaw*Tc;
 
-    if (gait_mode == "Default")
+    if (!initialized && stage == "Support Phase") // TODO: debug this
     {
-        // Do nothing
-        support_phase = 0.0;
-        transfer_phase = 0.0;
+        initialized = true;
     }
-    else if (stage == "Support Phase")
+
+    if (!initialized)
     {
-        ci.x = rmi*cos(phi_i + delta_phi) + cm.x;
-        ci.y = rmi*sin(phi_i + delta_phi) + cm.y;
+        double offset = speed*elapsed;
+        ci.x = cw.x - offset*cos(yaw_angle);
+        ci.y = cw.y - offset*sin(yaw_angle);
         ci.z = -base_height;
-
-        support_phase = abs((phi_i - phi_AEP)/(2.0 * theta)); // support phase is angular
-        current_phase = support_phase*duty_factor;
-        transfer_phase = 0.0;
-
-        if (support_phase >= 1.0)
+        
+        if (ci == PEP)
         {
+            ROS_INFO("######################    Switch to Transfer Phase    ######################\n");
             stage = "Transfer Phase";
             support_phase = 0.0;
-            current_phase = duty_factor;
+            transfer_phase = 0.0;
+            phi_i = phi_PEP;
+            ci = PEP;
         }
     }
-    else if (stage == "Transfer Phase")
+
+    if (stage == "Support Phase" && gait_mode != "Default" && initialized)
     {
-        alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
-        d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
-        d_transfer = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
-        
-        // transfer_phase = (phi_i - phi_PEP)/(2.0 * theta);
-        transfer_phase = 1.0 - d_AEP/d_transfer; // transfer phase is linear
-        current_phase = duty_factor + transfer_phase*(1.0 - duty_factor);
-        support_phase = 0.0;
+        support_phase = abs((phi_i - phi_AEP)/(2.0 * theta));
+        transfer_phase = 0.0;
 
-        transfer_time = stride_time*(1.0 - duty_factor);
-        phi_plus = (1.0 - transfer_phase)*(2.0*theta);
-        tG_plus = (1.0 - transfer_phase)*transfer_time;
-        delta_tG = delta_phi/(phi_plus/tG_plus); 
-        k_plus = round(tG_plus/delta_tG);
-
-        z_mh = stride_height;
-        delta_x = (d_AEP + z_mh)*cos(alpha)/k_plus;
-        delta_y = (d_AEP + z_mh)*sin(alpha)/k_plus;
-
-        ci.x += delta_x;
-        ci.y += delta_y;
-
-        double epsilon = 0.01;
-        if (d_AEP > epsilon) // Check if above final XY location
+        // Need to switch phases before going past PEP
+        if (support_phase >= 1.0)
         {
-            ci.z = LPF1(-z_mh, ci.z, 0.1); // lifting
+            ROS_INFO("######################    Switch to Transfer Phase    ######################\n");
+            stage = "Transfer Phase";
+            support_phase = 0.0;
+            transfer_phase = 0.0;
+            phi_i = phi_PEP;
+            ci = PEP;
         }
         else
         {
-            ci.z += (-z_mh - ci.z)/k_plus; // lowering
+            ci.x = rmw*cos(phi_i - delta_phi) + cm.x;
+            ci.y = rmw*sin(phi_i - delta_phi) + cm.y;
+            ci.z = -base_height;
+        }
+    }
+    else if (stage == "Transfer Phase" && gait_mode != "Default" && initialized)
+    {
+        alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
+        d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
+        PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+        d_PEP = PEP_to_AEP - d_AEP;
+        phi_plus = phi_AEP - phi_i;
+        
+        // transfer_phase = abs((phi_i - phi_PEP)/(2.0 * theta));
+        double current_height = ci.z + base_height;
+        double transfer_distance = PEP_to_AEP + stride_height;
+
+        if (phi_plus > 0.0) // lifting
+        {
+            transfer_phase = d_PEP/transfer_distance;
+            phase_diff = transfer_phase - last_transfer_phase;
+            last_transfer_phase = transfer_phase;
+            lowering_rate = stride_height/(1.0 - transfer_phase);
+
+            transfer_time = stride_time*(1.0 - duty_factor);
+            tG_plus = (1.0 - transfer_phase)*transfer_time;
+
+            delta_tG = delta_phi/(phi_plus/tG_plus); 
+            k_plus = round(tG_plus/delta_tG);
+
+            delta_x = (d_AEP + stride_height)*cos(alpha)/k_plus;
+            delta_y = (d_AEP + stride_height)*sin(alpha)/k_plus;
+
+            ci.x += delta_x;
+            ci.y += delta_y;
+            ci.z = LPF1(-stride_height, ci.z, 0.1);
+        }
+        else // lowering
+        {
+            transfer_phase += phase_diff;
+            // Need to switch phases before going past AEP
+            if (transfer_phase >= 1.0)
+            {
+                ROS_INFO("######################    Switch to Support Phase    ######################\n");
+                stage = "Support Phase";
+                support_phase = 0.0;
+                transfer_phase = 0.0;
+                phi_i = phi_AEP;
+                ci = AEP;
+            }
+            k_plus = 5.0;
+            ROS_INFO("Lowering?");
+            ROS_INFO("current_height: %f", current_height);
+            ci.x = AEP.x;
+            ci.y = AEP.y;
+            ci.z -= lowering_rate*phase_diff;
+            if (ci.z < -base_height)
+            {
+                ci.z = -base_height;
+            }
         }
 
-        if (transfer_phase >= 1.0)
-        {
-            stage = "Support Phase";
-            transfer_phase = 0.0;
-            current_phase = 0.0;
-        }
+        ROS_INFO("midway transfer_phase: %f, phi_plus: %f", transfer_phase, phi_plus);
     }
     else
     {
@@ -286,20 +325,23 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
         transfer_phase = 0.0;
     }
 
-    ROS_INFO("stage: %s, support phase: %f, transfer phase: %f, stride time: %f", stage.c_str(), support_phase, transfer_phase, stride_time);
-    ROS_INFO("theta: %f, x: %f, y: %f", theta, x, y);
-    ROS_INFO("rmi: %f, phi_i: %f, delta_phi: %f", rmi, phi_i, delta_phi);
-    ROS_INFO("AEP: (%f, %f, %f); PEP: (%f, %f, %f)", AEP.x, AEP.y, AEP.z, PEP.x, PEP.y, PEP.z);
-    ROS_INFO("phi_AEP: %f, phi_PEP: %f, phi_w: %f, rmw: %f", phi_AEP, phi_PEP, phi_w, rmw);
-    if (stage == "Transfer Phase")
+    if (gait_mode != "Default")
     {
-        ROS_INFO("d_AEP: %f, d_transfer: %f, alpha: %f, k_plus: %f", d_AEP, d_transfer, alpha, k_plus);
-        ROS_INFO("transfer time: %f, phi_plus: %f, tG_plus: %f, delta_tG: %f",
-            transfer_time, phi_plus, tG_plus, delta_tG);
-        ROS_INFO("delta_x, delta_y = (%f, %f)", delta_x, delta_y);
+        ROS_INFO("stage: %s, support phase: %f, transfer phase: %f", stage.c_str(), support_phase, transfer_phase);
+        ROS_INFO("stride time: %f, stride height: %f", stride_time, stride_height);
+        ROS_INFO("rmw: %f, phi_i: %f, theta: %f, delta_phi: %f", rmw, phi_i, theta, delta_phi);
+        ROS_INFO("AEP: (%f, %f, %f); PEP: (%f, %f, %f)", AEP.x, AEP.y, AEP.z, PEP.x, PEP.y, PEP.z);
+        if (stage == "Transfer Phase")
+        {
+            ROS_INFO("d_AEP: %f, PEP_to_AEP: %f, alpha: %f, k_plus: %f", d_AEP, PEP_to_AEP, alpha, k_plus);
+            ROS_INFO("transfer time: %f, phi_plus: %f, tG_plus: %f, delta_tG: %f",
+                transfer_time, phi_plus, tG_plus, delta_tG);
+            ROS_INFO("delta_x, delta_y = (%f, %f)", delta_x, delta_y);
+            ROS_INFO("lowering_rate: %f, phase_diff: %f", lowering_rate, phase_diff);
+        }
+        ROS_INFO("cm: (%f, %f);   cw: (%f, %f);   ci: (%f, %f, %f)\n",
+            cm.x, cm.y, cw.x, cw.y, ci.x, ci.y, ci.z);
     }
-    ROS_INFO("cm: (%f, %f);   cw: (%f, %f);   ci: (%f, %f, %f)\n",
-        cm.x, cm.y, cw.x, cw.y, ci.x, ci.y, ci.z);
 
     // Build message
     target_pose.x = ci.x;
@@ -340,21 +382,6 @@ void SetTrajectoryAction::gaitModeCB(const std_msgs::StringConstPtr& msg)
     this->gait_mode = msg->data;
 }
 
-void SetTrajectoryAction::strideHeightCB(const std_msgs::Float64ConstPtr& msg)
-{
-    this->stride_height = msg->data;
-}
-
-void SetTrajectoryAction::dutyFactorCB(const std_msgs::Float64ConstPtr& msg)
-{
-    this->duty_factor = msg->data;
-}
-
-void SetTrajectoryAction::phaseCB(const std_msgs::Float64ConstPtr& msg)
-{
-    this->initial_phase = msg->data;
-}
-
 void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
 {
     this->speed = msg->x;
@@ -364,25 +391,15 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
     SetTrajectoryAction::updateTrajectory();
 }
 
-geometry_msgs::Point SetTrajectoryAction::initialFootPos(const double& base_height)
+geometry_msgs::Point SetTrajectoryAction::getCw(const double& base_height)
 {
-    geometry_msgs::Point foot;
-    foot.x = foot_radius*cos(hip_angle);
-    foot.y = foot_radius*sin(hip_angle);
-    foot.z = -base_height;
+    geometry_msgs::Point cw;
+    double foot_radius = base_radius + dcw;
+    cw.x = foot_radius*cos(hip_angle);
+    cw.y = foot_radius*sin(hip_angle);
+    cw.z = -base_height;
 
-    return foot;
-}
-
-geometry_msgs::Point SetTrajectoryAction::getHipPos()
-{
-    // TODO: make hip location a gazebo look-up so it's more accurate?
-    geometry_msgs::Point hip;
-    hip.x = base_radius*cos(hip_angle);
-    hip.y = base_radius*sin(hip_angle);
-    hip.z = 0.0;
-
-    return hip;
+    return cw;
 }
 
 std::tuple<double, double> SetTrajectoryAction::calcStepRadius(const double& base_height)
@@ -393,17 +410,6 @@ std::tuple<double, double> SetTrajectoryAction::calcStepRadius(const double& bas
     dcw = coxa_length + dwi; // radius from hip to workspace center
 
     return std::make_tuple(dwi, dcw);
-}
-
-double SetTrajectoryAction::calcXYAngle(const geometry_msgs::Point& from, const geometry_msgs::Point& to)
-{
-    double from_cross_to = to.x*from.y - to.y*from.x;
-    double from_mag = sqrt(pow(from.x, 2) + pow(from.y, 2));
-    double to_mag = sqrt(pow(to.x, 2) + pow(to.y, 2));
-    ROS_INFO("cross, from, to, angle: %f, %f, %f, %f", from_cross_to, from_mag, to_mag, from_cross_to/(from_mag*to_mag));
-
-    double result = asin(from_cross_to/(from_mag*to_mag)) - M_PI; // TODO: WRONG for cases when to.y < 0
-    return result;
 }
 
 // 1st order low-pass filter
