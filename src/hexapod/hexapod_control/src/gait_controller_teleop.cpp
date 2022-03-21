@@ -21,9 +21,8 @@ public:
 		this->buttonSubscriber = node.subscribe("/hexapod/teleop/button", 10, &GaitController::buttonCB, this);
 		
         ROS_INFO("Publishing to Trajectory Action Servers...");
-        this->strideTimePublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_time", 1);
+        this->gaitModePublisher = node.advertise<std_msgs::String>("/hexapod/gait/gait_mode", 1);
         this->strideHeightPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_height", 1);
-        this->strideLengthPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/stride_length", 1);
         this->dutyFactorPublisher = node.advertise<std_msgs::Float64>("/hexapod/gait/duty_factor", 1);
         this->phaseL1Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L1", 1);
         this->phaseL2Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_L2", 1);
@@ -33,12 +32,7 @@ public:
         this->phaseR3Publisher = node.advertise<std_msgs::Float64>("/hexapod/gait/phase_R3", 1);
         this->commandPublisher = node.advertise<geometry_msgs::Vector3>("/hexapod/gait/command", 1);
         
-        // Initialize subscribed variables
-        // TODO: Remove this section? Does this lead to weird startup behavior?
-        // speed = 0.0;
-        // yaw = 0.0;
-        // yaw_angle = 0.0;
-
+        // Initialize variables
         B_button = false;
         gait_type = "ripple";
         gait_counter = 0;
@@ -90,11 +84,7 @@ public:
         // Get parameters from parameter server
         node.getParam("/hexapod/gait/" + gait_type + "/max_speed", max_speed);
         node.getParam("/hexapod/gait/" + gait_type + "/max_yaw", max_yaw);
-        // node.getParam("/hexapod/gait/" + gait_type + "/lin_acc", lin_acc);
-        // node.getParam("/hexapod/gait/" + gait_type + "/ang_acc", ang_acc);
-        node.getParam("/hexapod/gait/" + gait_type + "/stride_time", stride_time);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
-        node.getParam("/hexapod/gait/" + gait_type + "/stride_length", stride_length);
         node.getParam("/hexapod/gait/" + gait_type + "/duty_factor", duty_factor);
         node.getParam("/hexapod/gait/" + gait_type + "/phase/L1", phase_L1);
         node.getParam("/hexapod/gait/" + gait_type + "/phase/L2", phase_L2);
@@ -102,6 +92,8 @@ public:
         node.getParam("/hexapod/gait/" + gait_type + "/phase/R1", phase_R1);
         node.getParam("/hexapod/gait/" + gait_type + "/phase/R2", phase_R2);
         node.getParam("/hexapod/gait/" + gait_type + "/phase/R3", phase_R3);
+        // node.getParam("/hexapod/gait/" + gait_type + "/lin_acc", lin_acc);
+        // node.getParam("/hexapod/gait/" + gait_type + "/ang_acc", ang_acc);
 
         // Dead zone
         double deadzone = 0.0; // no deadzone necessary for SN30pro+
@@ -125,10 +117,9 @@ public:
             gait_mode = "Strafe";
             // TODO: fix max of map input. can be larger than 1.0 when both contribute
             speed = mapRange(abs(linearX) + abs(linearY), 0.0, 1.0, 0.0, max_speed);
-            // TODO: make yaw such that desired max speed is met when strafing
             yaw_angle = atan2(linearY, linearX);
-            yaw = (yaw_angle <= 0.25*M_PI && yaw_angle >= -0.75*M_PI) ? eps : -eps;
-            // atan2 range is -ip to pi; yaw is positive if on bottom half of y = x line
+            yaw = eps; //(yaw_angle <= 0.25*M_PI && yaw_angle >= -0.75*M_PI) ? eps : -eps;
+            // atan2 range is -pi to +pi; yaw is positive if on bottom half of y = x line
             // TODO: check if above is accurate
         }
         // Rotate (Rx only)
@@ -176,18 +167,13 @@ public:
             gait_mode.c_str(), speed, yaw, yaw_angle);
 
         // Publish gait parameters
-
-        std_msgs::Float64 strideTimeMsg;
-        strideTimeMsg.data = stride_time;
-        this->strideTimePublisher.publish(strideTimeMsg);
+        std_msgs::String gaitModeMsg;
+        gaitModeMsg.data = gait_mode;
+        this->gaitModePublisher.publish(gaitModeMsg);
 
         std_msgs::Float64 strideHeightMsg;
         strideHeightMsg.data = stride_height;
         this->strideHeightPublisher.publish(strideHeightMsg);
-
-        std_msgs::Float64 strideLengthMsg;
-        strideLengthMsg.data = stride_length;
-        this->strideLengthPublisher.publish(strideLengthMsg);
 
         std_msgs::Float64 dutyFactorMsg;
         dutyFactorMsg.data = duty_factor;
@@ -265,9 +251,8 @@ private:
     ros::NodeHandle node;
     ros::Subscriber twistSubscriber;
     ros::Subscriber buttonSubscriber;
-    ros::Publisher strideTimePublisher;
+    ros::Publisher gaitModePublisher;
     ros::Publisher strideHeightPublisher;
-    ros::Publisher strideLengthPublisher;
     ros::Publisher dutyFactorPublisher;
     ros::Publisher phaseL1Publisher;
     ros::Publisher phaseL2Publisher;
@@ -280,12 +265,12 @@ private:
     std::string gait_mode, gait_type;
     int gait_counter;
     double lin_acc, ang_acc;
-    double duty_factor, stride_time, stride_height, stride_length;
+    double duty_factor, stride_height;
     double phase_L1, phase_L2, phase_L3, phase_R1, phase_R2, phase_R3;
     double speed, yaw, yaw_angle;
     bool B_button;
     double max_speed, max_yaw;
-    double eps = 1e-6;
+    double eps = 1e-6; // 1e-6
 };
 
 int main(int argc, char **argv)
