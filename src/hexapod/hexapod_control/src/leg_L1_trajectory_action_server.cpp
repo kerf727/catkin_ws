@@ -3,6 +3,7 @@
 #include "hexapod_control/GaitAction.h"
 #include "hexapod_control/Pose.h"
 #include "hexapod_control/SolveFKPose.h"
+#include "std_msgs/String.h"
 #include "std_msgs/Float64.h"
 #include "std_msgs/Bool.h"
 #include "gazebo_msgs/GetLinkState.h"
@@ -22,6 +23,7 @@ public:
         this->node = node;
 
 		ROS_INFO("Subscribing to Gait Controller and Teleop...");
+		this->gaitModeSubscriber = node.subscribe("/hexapod/gait/gait_mode", 10, &SetTrajectoryAction::gaitModeCB, this);
 		this->strideHeightSubscriber = node.subscribe("/hexapod/gait/stride_height", 10, &SetTrajectoryAction::strideHeightCB, this);
 		this->dutyFactorSubscriber = node.subscribe("/hexapod/gait/duty_factor", 10, &SetTrajectoryAction::dutyFactorCB, this);
 		this->phaseSubscriber = node.subscribe("/hexapod/gait/phase_" + leg_name, 10, &SetTrajectoryAction::phaseCB, this);
@@ -37,7 +39,7 @@ public:
         node.getParam("/hexapod/geometry/base/radius", base_radius);
         node.getParam("/hexapod/geometry/base/height", base_height);
         node.getParam("/hexapod/geometry/leg_" + leg_name + "/hip_angle", hip_angle);
-        hip_angle = hip_angle*M_PI/180; // convert to radians
+        hip_angle = hip_angle*M_PI/180.0; // convert to radians
 
         start = ros::Time::now().toSec();
 
@@ -45,7 +47,17 @@ public:
         foot_radius = base_radius + dcw;
 
         ci = initialFootPos(base_height); // initialize with current foot position
-        ROS_INFO("initial ci: (%f, %f, %f)", ci.x, ci.y, ci.z);
+        ROS_INFO("initial ci: (%f, %f, %f); dwi: %f, dcw: %f", ci.x, ci.y, ci.z, dwi, dcw);
+
+        current_phase = initial_phase;
+        if (initial_phase < duty_factor)
+        {
+            stage = "Support Phase";
+        }
+        else
+        {
+            stage = "Transfer Phase";
+        }
      
         ROS_INFO("Subscribing to Gazebo GetLinkState service");
         this->linkStateClient = node.serviceClient<gazebo_msgs::GetLinkState>("/gazebo/get_link_state");
@@ -71,6 +83,7 @@ private:
 	void publishResult(const actionlib::SimpleClientGoalState& state,
 		const hexapod_control::SetPoseResult::ConstPtr& poseResult);
 	void activeCB();
+    void gaitModeCB(const std_msgs::StringConstPtr& msg);
     void strideHeightCB(const std_msgs::Float64ConstPtr& msg);
     void dutyFactorCB(const std_msgs::Float64ConstPtr& msg);
     void phaseCB(const std_msgs::Float64ConstPtr& msg);
@@ -78,13 +91,14 @@ private:
     geometry_msgs::Point initialFootPos(const double& base_height);
     geometry_msgs::Point getHipPos();
     std::tuple<double, double> calcStepRadius(const double& base_height);
-    double calcXYAngle(const geometry_msgs::Point& a, const geometry_msgs::Point& b);
+    double calcXYAngle(const geometry_msgs::Point& from, const geometry_msgs::Point& to);
     double LPF1(const double& goal, const double& z_prev, const double& rate);
     void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg);
     ros::NodeHandle node;
 	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client;
     ros::Subscriber jointStateSubscriber;
-	ros::Subscriber strideTimeSubscriber;
+	ros::Subscriber gaitModeSubscriber;
+    ros::Subscriber strideTimeSubscriber;
     ros::Subscriber strideHeightSubscriber;
     ros::Subscriber strideLengthSubscriber;
     ros::Subscriber dutyFactorSubscriber;
@@ -96,9 +110,9 @@ private:
     double start, t, elapsed, last_elapsed, Tc;
 	double initial_phase, current_phase;
     double speed, yaw, yaw_angle;
+    std::string gait_mode;
 	double stride_time, stride_height, duty_factor;
     sensor_msgs::JointState current_state;
-    geometry_msgs::Point hip;
     geometry_msgs::Point ci;
     double base_radius, base_height, hip_angle, foot_radius;
     double femur_length, tibia_length, coxa_length;
@@ -108,49 +122,9 @@ private:
     double eps = 0.05;
 };
 
-void SetTrajectoryAction::updateTrajectory()
+void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
 {
     hexapod_control::Pose target_pose;
-
-    if (speed == 0.0) // Don't move, no need to update ci
-    {
-        // Build message
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.goal = target_pose;
-        poseAction.eps = eps;
-        this->client.sendGoal(poseAction,
-            boost::bind(&SetTrajectoryAction::publishResult, this, _1, _2),
-            boost::bind(&SetTrajectoryAction::activeCB, this),
-            boost::bind(&SetTrajectoryAction::publishFeedback, this, _1));
-        
-        return; // End function if speed is 0
-    }
-
-    // Calculate stride time if speed is nonzero
-    stride_time = (2.0*dwi/speed)/duty_factor; // support time / duty factor
-    // TODO: does this only hold true for strafe mode? what about curved path?
-
-    elapsed = ros::Time::now().toSec() - start;
-
-    t = elapsed + initial_phase*stride_time; // account for initial_phase
-    current_phase = fmod(t/stride_time, 1.0);
-    
-    Tc = elapsed - last_elapsed; // control interval
-    last_elapsed = elapsed;
-
-    // initialized = false;
-    // if (!initialized && current_phase >= duty_factor)
-    // {
-    //     initialized = true;
-    // }
 
     // Calculate distance from body center to motion center
     double rm;
@@ -167,9 +141,8 @@ void SetTrajectoryAction::updateTrajectory()
     // phi: current angle of the line connecting motion center and body center
     // geometry_msgs::Point ux; // unit vector in body CF X-axis
     // ux.x = 1.0; ux.y = 0.0; ux.z = 0.0;
-    // double phi = calcXYAngle(ci, ux);
+    // double phi = atan2(ci.y, ci.x);
     double phi = M_PI_2 - yaw_angle;
-    double delta_phi = yaw*Tc;
 
     // Calculate motion center
     geometry_msgs::Point cm;
@@ -178,7 +151,7 @@ void SetTrajectoryAction::updateTrajectory()
     cm.z = -base_height;
 
     // Calculate center of foot workspace
-    geometry_msgs::Point cw;
+    geometry_msgs::Point hip, cw;
     hip = getHipPos();
     cw.x = dcw*cos(hip_angle) + hip.x;
     cw.y = dcw*sin(hip_angle) + hip.y;
@@ -189,53 +162,100 @@ void SetTrajectoryAction::updateTrajectory()
     geometry_msgs::Point ux; // unit vector in body CF X-axis
     ux.x = 1.0;
     ux.y = 0.0;
-    geometry_msgs::Point cm_to_ci; // vector from cm to ci
+    geometry_msgs::Point cm_to_ci;
     cm_to_ci.x = ci.x - cm.x;
     cm_to_ci.y = ci.y - cm.y;
-    double phi_i = calcXYAngle(cm_to_ci, ux);
+    double phi_i = atan2(cm_to_ci.y, cm_to_ci.x);
     double rmi = sqrt(pow(cm_to_ci.x, 2) + pow(cm_to_ci.y, 2));
 
-    // theta: angle from rotation center to edge of foot WS wrt cm
-    double theta = acos(1 - 0.125*pow(dwi/rmi, 2));
-
-    geometry_msgs::Point AEP;
-    geometry_msgs::Point cm_to_cw; // vector from cm to cw
+    geometry_msgs::Point cm_to_cw;
     cm_to_cw.x = cw.x - cm.x;
     cm_to_cw.y = cw.y - cm.y;
-    double phi_w = calcXYAngle(cm_to_cw, ux); // angle from cm to cw
-    AEP.x = rmi*cos(phi_w - theta) + cm.x;
-    AEP.y = rmi*sin(phi_w - theta) + cm.y;
+    double phi_w = atan2(cm_to_cw.y, cm_to_cw.x);
+    double rmw = sqrt(pow(cm_to_cw.x, 2) + pow(cm_to_cw.y, 2));
+    
+    // theta: angle from rotation center to edge of foot WS wrt cm
+    // https://mathworld.wolfram.com/Circle-CircleIntersection.html
+    double x = (pow(rmw, 2) - pow(dwi, 2) + pow(rmw, 2))/(2.0*rmw);
+    double y = sqrt(pow(rmw, 2) - pow(x, 2));
+    double theta = asin(y/rmw); // y = rmw*sin(theta)
+
+    double dir = (yaw > 0.0) ? 1.0 : -1.0; // sign of yaw movement
+
+    geometry_msgs::Point AEP;
+    AEP.x = rmw*cos(phi_w + dir*theta) + cm.x;
+    AEP.y = rmw*sin(phi_w + dir*theta) + cm.y;
     AEP.z = -base_height;
 
-    double transfer_phase, alpha, d_AEP, z_mh, transfer_time, phi_plus;
+    geometry_msgs::Point cm_to_AEP;
+    cm_to_AEP.x = AEP.x - cm.x;
+    cm_to_AEP.y = AEP.y - cm.y;
+    double phi_AEP = atan2(cm_to_AEP.y, cm_to_AEP.x);
+
+    geometry_msgs::Point PEP;
+    PEP.x = rmw*cos(phi_w - dir*theta) + cm.x;
+    PEP.y = rmw*sin(phi_w - dir*theta) + cm.y;
+    PEP.z = -base_height;
+
+    geometry_msgs::Point cm_to_PEP;
+    cm_to_PEP.x = PEP.x - cm.x;
+    cm_to_PEP.y = PEP.y - cm.y;
+    double phi_PEP = atan2(cm_to_PEP.y, cm_to_PEP.x);
+
+    elapsed = ros::Time::now().toSec() - start;
+
+    double support_phase, transfer_phase, transfer_time;
+    double alpha, d_AEP, d_transfer, z_mh, phi_plus, delta_phi;
     double tG_plus, delta_tG, k_plus, delta_x, delta_y;
 
-    // Support phase
-    if (current_phase < duty_factor)
-    {
-        // double support_phase = current_phase/duty_factor;
-        // ci.x = rmi*cos(phi_w + theta*(2*support_phase - 1)) + cm.x;
-        // ci.y = rmi*sin(phi_w + theta*(2*support_phase - 1)) + cm.y;
+    stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
+    // TODO: make sure this doesn't lead to weird slow movement...
 
+    Tc = elapsed - last_elapsed; // control interval
+    last_elapsed = elapsed;
+    delta_phi = yaw*Tc;
+
+    if (gait_mode == "Default")
+    {
+        // Do nothing
+        support_phase = 0.0;
+        transfer_phase = 0.0;
+    }
+    else if (stage == "Support Phase")
+    {
         ci.x = rmi*cos(phi_i + delta_phi) + cm.x;
         ci.y = rmi*sin(phi_i + delta_phi) + cm.y;
         ci.z = -base_height;
-        stage = "Support Phase";
+
+        support_phase = abs((phi_i - phi_AEP)/(2.0 * theta)); // support phase is angular
+        current_phase = support_phase*duty_factor;
+        transfer_phase = 0.0;
+
+        if (support_phase >= 1.0)
+        {
+            stage = "Transfer Phase";
+            support_phase = 0.0;
+            current_phase = duty_factor;
+        }
     }
-    // Transfer phase
-    else
+    else if (stage == "Transfer Phase")
     {
-        transfer_phase = (current_phase - duty_factor)/(1.0 - duty_factor);
         alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
         d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
-        z_mh = stride_height;
+        d_transfer = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+        
+        // transfer_phase = (phi_i - phi_PEP)/(2.0 * theta);
+        transfer_phase = 1.0 - d_AEP/d_transfer; // transfer phase is linear
+        current_phase = duty_factor + transfer_phase*(1.0 - duty_factor);
+        support_phase = 0.0;
 
         transfer_time = stride_time*(1.0 - duty_factor);
-        phi_plus = (1.0 - transfer_phase)*(2*theta);
+        phi_plus = (1.0 - transfer_phase)*(2.0*theta);
         tG_plus = (1.0 - transfer_phase)*transfer_time;
         delta_tG = delta_phi/(phi_plus/tG_plus); 
         k_plus = round(tG_plus/delta_tG);
 
+        z_mh = stride_height;
         delta_x = (d_AEP + z_mh)*cos(alpha)/k_plus;
         delta_y = (d_AEP + z_mh)*sin(alpha)/k_plus;
 
@@ -243,31 +263,42 @@ void SetTrajectoryAction::updateTrajectory()
         ci.y += delta_y;
 
         double epsilon = 0.01;
-        if (abs(ci.x - AEP.x) > epsilon)
+        if (d_AEP > epsilon) // Check if above final XY location
         {
-            ci.z = LPF1(-z_mh, ci.z, 0.5); // lifting
+            ci.z = LPF1(-z_mh, ci.z, 0.1); // lifting
         }
         else
         {
             ci.z += (-z_mh - ci.z)/k_plus; // lowering
         }
-        stage = "Transfer Phase";
+
+        if (transfer_phase >= 1.0)
+        {
+            stage = "Support Phase";
+            transfer_phase = 0.0;
+            current_phase = 0.0;
+        }
+    }
+    else
+    {
+        // Do nothing
+        support_phase = 0.0;
+        transfer_phase = 0.0;
     }
 
-    ROS_INFO("stage: %s, phase: %f, stride time: %f", stage.c_str(), current_phase, stride_time);
-    if (stage == "Support Phase")
+    ROS_INFO("stage: %s, support phase: %f, transfer phase: %f, stride time: %f", stage.c_str(), support_phase, transfer_phase, stride_time);
+    ROS_INFO("theta: %f, x: %f, y: %f", theta, x, y);
+    ROS_INFO("rmi: %f, phi_i: %f, delta_phi: %f", rmi, phi_i, delta_phi);
+    ROS_INFO("AEP: (%f, %f, %f); PEP: (%f, %f, %f)", AEP.x, AEP.y, AEP.z, PEP.x, PEP.y, PEP.z);
+    ROS_INFO("phi_AEP: %f, phi_PEP: %f, phi_w: %f, rmw: %f", phi_AEP, phi_PEP, phi_w, rmw);
+    if (stage == "Transfer Phase")
     {
-        ROS_INFO("rmi: %f, phi_i: %f, delta_phi: %f", rmi, phi_i, delta_phi);
-    }
-    else if (stage == "Transfer Phase")
-    {
-        ROS_INFO("d_AEP: %f, alpha: %f, k_plus: %f", d_AEP, alpha, k_plus);
-        ROS_INFO("rmi: %f, phi_w: %f, theta: %f", rmi, phi_w, theta);
+        ROS_INFO("d_AEP: %f, d_transfer: %f, alpha: %f, k_plus: %f", d_AEP, d_transfer, alpha, k_plus);
         ROS_INFO("transfer time: %f, phi_plus: %f, tG_plus: %f, delta_tG: %f",
             transfer_time, phi_plus, tG_plus, delta_tG);
-        ROS_INFO("AEP: (%f, %f, %f)", AEP.x, AEP.y, AEP.z);
+        ROS_INFO("delta_x, delta_y = (%f, %f)", delta_x, delta_y);
     }
-    ROS_INFO("cm: (%f, %f);    cw: (%f, %f);    ci: (%f, %f, %f)\n",
+    ROS_INFO("cm: (%f, %f);   cw: (%f, %f);   ci: (%f, %f, %f)\n",
         cm.x, cm.y, cw.x, cw.y, ci.x, ci.y, ci.z);
 
     // Build message
@@ -302,6 +333,11 @@ void SetTrajectoryAction::publishResult(const actionlib::SimpleClientGoalState& 
 void SetTrajectoryAction::activeCB()
 {
 
+}
+
+void SetTrajectoryAction::gaitModeCB(const std_msgs::StringConstPtr& msg)
+{
+    this->gait_mode = msg->data;
 }
 
 void SetTrajectoryAction::strideHeightCB(const std_msgs::Float64ConstPtr& msg)
@@ -353,19 +389,21 @@ std::tuple<double, double> SetTrajectoryAction::calcStepRadius(const double& bas
 {
     double beta, dwi, dcw;
     beta = asin(base_height/(femur_length + tibia_length)); // full stretch leg angle
-    dwi = (femur_length + tibia_length)*cos(beta)/2; // workspace radius
+    dwi = (femur_length + tibia_length)*cos(beta)/2.0; // workspace radius
     dcw = coxa_length + dwi; // radius from hip to workspace center
 
     return std::make_tuple(dwi, dcw);
 }
 
-double SetTrajectoryAction::calcXYAngle(const geometry_msgs::Point& a, const geometry_msgs::Point& b)
+double SetTrajectoryAction::calcXYAngle(const geometry_msgs::Point& from, const geometry_msgs::Point& to)
 {
-    double a_dot_b = a.x*b.x + a.y*b.y;
-    double a_mag = sqrt(pow(a.x, 2) + pow(a.y, 2));
-    double b_mag = sqrt(pow(b.x, 2) + pow(b.y, 2));
+    double from_cross_to = to.x*from.y - to.y*from.x;
+    double from_mag = sqrt(pow(from.x, 2) + pow(from.y, 2));
+    double to_mag = sqrt(pow(to.x, 2) + pow(to.y, 2));
+    ROS_INFO("cross, from, to, angle: %f, %f, %f, %f", from_cross_to, from_mag, to_mag, from_cross_to/(from_mag*to_mag));
 
-    return acos(a_dot_b/(a_mag*b_mag));
+    double result = asin(from_cross_to/(from_mag*to_mag)) - M_PI; // TODO: WRONG for cases when to.y < 0
+    return result;
 }
 
 // 1st order low-pass filter
