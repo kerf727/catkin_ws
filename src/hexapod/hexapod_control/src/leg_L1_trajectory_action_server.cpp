@@ -25,6 +25,7 @@ public:
 		ROS_INFO("Subscribing to Gait Controller and Teleop...");
 		this->gaitModeSubscriber = node.subscribe("/hexapod/gait/gait_mode", 10, &SetTrajectoryAction::gaitModeCB, this);
 		this->commandSubscriber = node.subscribe("/hexapod/gait/command", 10, &SetTrajectoryAction::commandCB, this);
+		this->buttonSubscriber = node.subscribe("/hexapod/teleop/button", 10, &SetTrajectoryAction::buttonCB, this);
 
         ROS_INFO("Waiting for Pose State Server...");
         this->client.waitForServer(ros::Duration(30));
@@ -46,8 +47,6 @@ public:
         // TODO: place ci at initial_phase position
         ROS_INFO("initial ci: (%f, %f, %f); dwi: %f, dcw: %f", ci.x, ci.y, ci.z, dwi, dcw);
 
-        // TODO: move B button code into here to update gait_type
-        std::string gait_type = "ripple";
         node.getParam("/hexapod/gait/" + gait_type + "/phase/" + leg_name, initial_phase);
         node.getParam("/hexapod/gait/" + gait_type + "/duty_factor", duty_factor);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
@@ -80,8 +79,6 @@ public:
         ROS_INFO("Leg %s trajectory action server ready.\n", leg_name.c_str());
     }
 
-	void updateTrajectory();
-
 	~SetTrajectoryAction()
 	{
 		this->node.shutdown();
@@ -94,6 +91,7 @@ private:
 	void activeCB();
     void gaitModeCB(const std_msgs::StringConstPtr& msg);
     void commandCB(const geometry_msgs::Vector3ConstPtr& msg);
+    void buttonCB(const std_msgs::BoolConstPtr& msg);
     geometry_msgs::Point getCw(const double& base_height);
     std::tuple<double, double> calcStepRadius(const double& base_height);
     double calcXYAngle(const geometry_msgs::Point& from, const geometry_msgs::Point& to);
@@ -104,6 +102,7 @@ private:
     ros::Subscriber jointStateSubscriber;
 	ros::Subscriber gaitModeSubscriber;
     ros::Subscriber commandSubscriber;
+    ros::Subscriber buttonSubscriber;
     ros::ServiceClient linkStateClient;
     ros::ServiceClient fkClient;
     hexapod_control::Pose current_pose;
@@ -119,13 +118,20 @@ private:
     double dwi, dcw;
     double support_phase, transfer_phase, last_transfer_phase, phase_diff, lowering_rate;
     bool initialized = false;
+    bool B_button = false;
+    std::string gait_type = "ripple";
+    int gait_counter = 0;
     std::string stage;
     double eps = 0.05;
     double d_epsilon = 0.003;
 };
 
-void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
+void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
 {
+    this->speed = msg->x;
+    this->yaw = msg->y;
+    this->yaw_angle = msg->z;
+
     hexapod_control::Pose target_pose;
 
     // Calculate distance from body center to motion center
@@ -144,7 +150,7 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     // geometry_msgs::Point ux; // unit vector in body CF X-axis
     // ux.x = 1.0; ux.y = 0.0; ux.z = 0.0;
     // double phi = atan2(ci.y, ci.x);
-    double phi = M_PI_2 - yaw_angle;
+    double phi = yaw_angle - M_PI_2;
 
     // Calculate motion center
     geometry_msgs::Point cm;
@@ -165,7 +171,7 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     cm_to_ci.x = ci.x - cm.x;
     cm_to_ci.y = ci.y - cm.y;
     double phi_i = atan2(cm_to_ci.y, cm_to_ci.x);
-    // rmw = rmi always
+    // rmi = rmw always
 
     geometry_msgs::Point cm_to_cw;
     cm_to_cw.x = cw.x - cm.x;
@@ -178,12 +184,11 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     double x = (pow(rmw, 2) - pow(dwi, 2) + pow(rmw, 2))/(2.0*rmw);
     double y = sqrt(pow(rmw, 2) - pow(x, 2));
     double theta = asin(y/rmw); // y = rmw*sin(theta)
-
-    double dir = (yaw > 0.0) ? 1.0 : -1.0; // sign of yaw movement
+    stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
 
     geometry_msgs::Point AEP;
-    AEP.x = rmw*cos(phi_w + dir*theta) + cm.x;
-    AEP.y = rmw*sin(phi_w + dir*theta) + cm.y;
+    AEP.x = rmw*cos(phi_w - theta) + cm.x;
+    AEP.y = rmw*sin(phi_w - theta) + cm.y;
     AEP.z = -base_height;
 
     geometry_msgs::Point cm_to_AEP;
@@ -192,8 +197,8 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     double phi_AEP = atan2(cm_to_AEP.y, cm_to_AEP.x);
 
     geometry_msgs::Point PEP;
-    PEP.x = rmw*cos(phi_w - dir*theta) + cm.x;
-    PEP.y = rmw*sin(phi_w - dir*theta) + cm.y;
+    PEP.x = rmw*cos(phi_w + theta) + cm.x;
+    PEP.y = rmw*sin(phi_w + theta) + cm.y;
     PEP.z = -base_height;
 
     geometry_msgs::Point cm_to_PEP;
@@ -206,9 +211,6 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     double transfer_time;
     double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, delta_phi;
     double tG_plus, delta_tG, k_plus, delta_x, delta_y;
-
-    stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
-    // TODO: make sure this doesn't lead to weird slow movement...
 
     Tc = elapsed - last_elapsed; // control interval
     last_elapsed = elapsed;
@@ -239,10 +241,8 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
 
     if (stage == "Support Phase" && gait_mode != "Default" && initialized)
     {
-        support_phase = abs((phi_i - phi_AEP)/(2.0 * theta));
-        transfer_phase = 0.0;
+        support_phase = (phi_i - phi_AEP)/(2.0 * theta);
 
-        // Need to switch phases before going past PEP
         if (support_phase >= 1.0)
         {
             ROS_INFO("######################    Switch to Transfer Phase    ######################\n");
@@ -254,8 +254,8 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
         }
         else
         {
-            ci.x = rmw*cos(phi_i - delta_phi) + cm.x;
-            ci.y = rmw*sin(phi_i - delta_phi) + cm.y;
+            ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
+            ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
             ci.z = -base_height;
         }
     }
@@ -265,14 +265,14 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
         d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
         PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
         d_PEP = PEP_to_AEP - d_AEP;
-        phi_plus = phi_AEP - phi_i;
+        phi_plus = phi_i - phi_AEP;
         
-        // transfer_phase = abs((phi_i - phi_PEP)/(2.0 * theta));
         double current_height = ci.z + base_height;
         double transfer_distance = PEP_to_AEP + stride_height;
 
         if (phi_plus > 0.0) // lifting
         {
+            // transfer_phase = abs((phi_i - phi_PEP)/(2.0 * theta));
             transfer_phase = d_PEP/transfer_distance;
             phase_diff = transfer_phase - last_transfer_phase;
             last_transfer_phase = transfer_phase;
@@ -280,7 +280,6 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
 
             transfer_time = stride_time*(1.0 - duty_factor);
             tG_plus = (1.0 - transfer_phase)*transfer_time;
-
             delta_tG = delta_phi/(phi_plus/tG_plus); 
             k_plus = round(tG_plus/delta_tG);
 
@@ -294,7 +293,6 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
         else // lowering
         {
             transfer_phase += phase_diff;
-            // Need to switch phases before going past AEP
             if (transfer_phase >= 1.0)
             {
                 ROS_INFO("######################    Switch to Support Phase    ######################\n");
@@ -304,9 +302,7 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
                 phi_i = phi_AEP;
                 ci = AEP;
             }
-            k_plus = 5.0;
-            ROS_INFO("Lowering?");
-            ROS_INFO("current_height: %f", current_height);
+
             ci.x = AEP.x;
             ci.y = AEP.y;
             ci.z -= lowering_rate*phase_diff;
@@ -314,9 +310,9 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
             {
                 ci.z = -base_height;
             }
-        }
 
-        ROS_INFO("midway transfer_phase: %f, phi_plus: %f", transfer_phase, phi_plus);
+            ROS_INFO("Lowering");
+        }
     }
     else
     {
@@ -329,8 +325,9 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
     {
         ROS_INFO("stage: %s, support phase: %f, transfer phase: %f", stage.c_str(), support_phase, transfer_phase);
         ROS_INFO("stride time: %f, stride height: %f", stride_time, stride_height);
-        ROS_INFO("rmw: %f, phi_i: %f, theta: %f, delta_phi: %f", rmw, phi_i, theta, delta_phi);
+        ROS_INFO("rmw: %f, theta: %f, delta_phi: %f", rmw, theta, delta_phi);
         ROS_INFO("AEP: (%f, %f, %f); PEP: (%f, %f, %f)", AEP.x, AEP.y, AEP.z, PEP.x, PEP.y, PEP.z);
+        ROS_INFO("phi_i: %f, phi_AEP: %f, phi_PEP = %f", phi_i, phi_AEP, phi_PEP);
         if (stage == "Transfer Phase")
         {
             ROS_INFO("d_AEP: %f, PEP_to_AEP: %f, alpha: %f, k_plus: %f", d_AEP, PEP_to_AEP, alpha, k_plus);
@@ -339,8 +336,8 @@ void SetTrajectoryAction::updateTrajectory() // TODO: combine with commandCB?
             ROS_INFO("delta_x, delta_y = (%f, %f)", delta_x, delta_y);
             ROS_INFO("lowering_rate: %f, phase_diff: %f", lowering_rate, phase_diff);
         }
-        ROS_INFO("cm: (%f, %f);   cw: (%f, %f);   ci: (%f, %f, %f)\n",
-            cm.x, cm.y, cw.x, cw.y, ci.x, ci.y, ci.z);
+        ROS_INFO("cm: (%f, %f);   ci: (%f, %f, %f)\n",
+            cm.x, cm.y, ci.x, ci.y, ci.z);
     }
 
     // Build message
@@ -382,13 +379,31 @@ void SetTrajectoryAction::gaitModeCB(const std_msgs::StringConstPtr& msg)
     this->gait_mode = msg->data;
 }
 
-void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
+void SetTrajectoryAction::buttonCB(const std_msgs::BoolConstPtr& msg)
 {
-    this->speed = msg->x;
-    this->yaw = msg->y;
-    this->yaw_angle = msg->z;
+    B_button = msg->data;
 
-    SetTrajectoryAction::updateTrajectory();
+    if (B_button)
+    {
+        gait_counter += 1;
+        if (gait_counter > 2)
+        {
+            gait_counter = 0;
+        }
+    }
+
+    switch(gait_counter)
+    {
+        case(0):
+            gait_type = "ripple";
+            break;
+        case(1):
+            gait_type = "tripod";
+            break;
+        case(2):
+            gait_type = "wave";
+            break;
+    }
 }
 
 geometry_msgs::Point SetTrajectoryAction::getCw(const double& base_height)
@@ -408,6 +423,9 @@ std::tuple<double, double> SetTrajectoryAction::calcStepRadius(const double& bas
     beta = asin(base_height/(femur_length + tibia_length)); // full stretch leg angle
     dwi = (femur_length + tibia_length)*cos(beta)/2.0; // workspace radius
     dcw = coxa_length + dwi; // radius from hip to workspace center
+
+    // Limit dwi to use smaller workspace radius without changing cw workspace center
+    dwi *= 0.7;
 
     return std::make_tuple(dwi, dcw);
 }
