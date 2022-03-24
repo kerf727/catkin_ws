@@ -3,23 +3,36 @@
 
     <!-- ============================ Constants ============================ -->
 
-    <xacro:property name="robot_name"   value="hexapod"/>
-    <xacro:property name="base_radius"  value="0.08"/>
-    <xacro:property name="coxa_length"  value="0.01"/>
-    <xacro:property name="femur_length" value="0.04"/>
-    <xacro:property name="tibia_length" value="0.08"/>
-    <xacro:property name="base_mass"    value="2.0"/>
-    <xacro:property name="coxa_mass"    value="0.1"/>
-    <xacro:property name="femur_mass"   value="0.4"/>
-    <xacro:property name="tibia_mass"   value="0.8"/>
+    <xacro:property name="robot_name"           value="hexapod"/>
+    <xacro:property name="base_radius"          value="0.08"/>
+    <xacro:property name="coxa_length"          value="0.01"/>
+    <xacro:property name="femur_length"         value="0.04"/>
+    <xacro:property name="tibia_length"         value="0.08"/>
+    <xacro:property name="base_mass"            value="2.0"/>
+    <xacro:property name="coxa_mass"            value="0.1"/>
+    <xacro:property name="femur_mass"           value="0.4"/>
+    <xacro:property name="tibia_mass"           value="0.8"/>
     <!-- <xacro:property name="foot_mass"    value="0.01"/> -->
-    <xacro:property name="inertia"      value="0.1"/>
-    <xacro:property name="L1_angle"     value="${2*pi/3}"/>
-    <xacro:property name="R1_angle"     value="${pi/3}"/>
-    <xacro:property name="L2_angle"     value="${pi}"/>
-    <xacro:property name="R2_angle"     value="${0}"/>
-    <xacro:property name="L3_angle"     value="${4*pi/3}"/>
-    <xacro:property name="R3_angle"     value="${5*pi/3}"/>
+    <xacro:property name="inertia"              value="0.1"/>
+    <xacro:property name="L1_angle"             value="${2*pi/3}"/>
+    <xacro:property name="R1_angle"             value="${pi/3}"/>
+    <xacro:property name="L2_angle"             value="${pi}"/>
+    <xacro:property name="R2_angle"             value="${0}"/>
+    <xacro:property name="L3_angle"             value="${4*pi/3}"/>
+    <xacro:property name="R3_angle"             value="${5*pi/3}"/>
+    <!-- <xacro:property name="hip_lower_limit"      value="${-pi/2}"/>
+    <xacro:property name="hip_upper_limit"      value="${pi/2}"/>
+    <xacro:property name="knee_lower_limit"     value="${-pi/6}"/>
+    <xacro:property name="knee_upper_limit"     value="${pi/2}"/>
+    <xacro:property name="ankle_lower_limit"    value="${0}"/>
+    <xacro:property name="ankle_upper_limit"    value="${2*pi/3}"/> -->
+    <xacro:property name="hip_lower_limit"      value="${-pi}"/>
+    <xacro:property name="hip_upper_limit"      value="${pi}"/>
+    <xacro:property name="knee_lower_limit"     value="${-pi/2}"/>
+    <xacro:property name="knee_upper_limit"     value="${pi/2}"/>
+    <xacro:property name="ankle_lower_limit"    value="${0}"/>
+    <xacro:property name="ankle_upper_limit"    value="${pi}"/>
+    
 
     <!-- =========================== Base Macro =========================== -->
 
@@ -127,7 +140,7 @@
             <parent link="${robot_name}/base_link"/>
             <child link="${robot_name}/${prefix}_coxa_link"/>
             <axis xyz="0 -1 0"/>
-            <limit lower="${-pi/2}" upper="${pi/2}" effort="30" velocity="${pi}"/>
+            <limit lower="${hip_lower_limit}" upper="${hip_upper_limit}" effort="30" velocity="${pi}"/>
             <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
         </joint>
 
@@ -136,7 +149,7 @@
             <parent link="${robot_name}/${prefix}_coxa_link"/>
             <child link="${robot_name}/${prefix}_femur_link"/>
             <axis xyz="1 0 0"/>
-            <limit lower="${-pi/6}" upper="${pi/2}" effort="30" velocity="${pi}"/>
+            <limit lower="${knee_lower_limit}" upper="${knee_upper_limit}" effort="30" velocity="${pi}"/>
             <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
         </joint>
 
@@ -145,7 +158,7 @@
             <parent link="${robot_name}/${prefix}_femur_link"/>
             <child link="${robot_name}/${prefix}_tibia_link"/>
             <axis xyz="-1 0 0"/>
-            <limit lower="0" upper="${2*pi/3}" effort="30" velocity="${pi}"/>
+            <limit lower="${ankle_lower_limit}" upper="${ankle_upper_limit}" effort="30" velocity="${pi}"/>
             <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3" soft_upper_limit="3"/>
         </joint>
 
@@ -232,12 +245,12 @@
 
     <!-- ========================== Generate URDF ========================== -->
 
-    <!-- <link name="world"/>
+    <link name="world"/>
     <joint name="fixed_joint" type="fixed">
         <origin xyz="0 0 0.3" rpy="0 0 0"/>
         <parent link="world"/>
         <child link="dummy_link"/>
-    </joint> -->
+    </joint>
 
     <!-- Dummy Link and Joint avoids "KDL does not support a root link with an inertia" error -->
     <link name="dummy_link"/>
