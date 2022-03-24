@@ -41,10 +41,14 @@ public:
 
         start = ros::Time::now().toSec();
 
-        std::tie(dwi, dcw) = calcStepRadius(base_height); // TODO: make base_height variable
+        ux.x = 1.0;
+        ux.y = 0.0;
 
-        ci = getCw(base_height); // initialize with current foot position
-        // TODO: place ci at initial_phase position
+        calcStepRadius(base_height); // TODO: make base_height variable
+
+        updateCw(base_height); // initialize with current foot position
+        ci = cw; // TODO: place ci at initial_phase position
+
         ROS_INFO("initial ci: (%f, %f, %f); dwi: %f, dcw: %f", ci.x, ci.y, ci.z, dwi, dcw);
 
         node.getParam("/hexapod/gait/" + gait_type + "/phase/" + leg_name, initial_phase);
@@ -92,8 +96,15 @@ private:
     void gaitModeCB(const std_msgs::StringConstPtr& msg);
     void commandCB(const geometry_msgs::Vector3ConstPtr& msg);
     void buttonCB(const std_msgs::BoolConstPtr& msg);
-    geometry_msgs::Point getCw(const double& base_height);
-    std::tuple<double, double> calcStepRadius(const double& base_height);
+    void initialization();
+    void supportPhase();
+    void transferPhase();
+    void updateCm(const double& yaw_angle, const double& base_height);
+    void updateCw(const double& base_height);
+    void updatePhiIW();
+    void updateTheta();
+    void updateAEPPEP();
+    void calcStepRadius(const double& base_height);
     double calcXYAngle(const geometry_msgs::Point& from, const geometry_msgs::Point& to);
     double LPF1(const double& goal, const double& z_prev, const double& rate);
     void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg);
@@ -112,11 +123,16 @@ private:
     std::string gait_mode;
 	double stride_time, stride_height, duty_factor;
     sensor_msgs::JointState current_state;
-    geometry_msgs::Point ci;
+    geometry_msgs::Point ci, cm, cw, cm_to_ci, cm_to_cw, hip, ux;
+    geometry_msgs::Point AEP, PEP, cm_to_AEP, cm_to_PEP;
     double base_radius, base_height, hip_angle, foot_radius;
     double femur_length, tibia_length, coxa_length;
     double dwi, dcw;
     double support_phase, transfer_phase, last_transfer_phase, phase_diff, lowering_rate;
+    double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, delta_phi;
+    double phi_i, phi_w, phi_AEP, phi_PEP;
+    double rm, rmw, theta, dir;
+    double transfer_time, tG_plus, delta_tG, k_plus, delta_x, delta_y;
     bool initialized = false;
     bool B_button = false;
     std::string gait_type = "ripple";
@@ -132,13 +148,15 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
     this->yaw = msg->y;
     this->yaw_angle = msg->z;
 
-    hexapod_control::Pose target_pose;
+    elapsed = ros::Time::now().toSec() - start;
 
-    // Calculate distance from body center to motion center
-    double rm;
+    Tc = elapsed - last_elapsed; // control interval
+    last_elapsed = elapsed;
+    delta_phi = yaw*Tc;
+
     try
     {
-        rm = speed/yaw;
+        rm = speed/yaw; // distance from body center to motion center
     }
     catch(const std::exception& e)
     {
@@ -146,75 +164,19 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
         ROS_WARN("Divide by zero error. Yaw cannot be zero. %s", e.what());
     }
 
-    // phi: current angle of the line connecting motion center and body center
-    // geometry_msgs::Point ux; // unit vector in body CF X-axis
-    // ux.x = 1.0; ux.y = 0.0; ux.z = 0.0;
-    // double phi = atan2(ci.y, ci.x);
-    double phi = yaw_angle - M_PI_2;
+    dir = (yaw > 0) ? 1.0 : -1.0;
 
-    // Calculate motion center
-    geometry_msgs::Point cm;
-    cm.x = rm*cos(phi);
-    cm.y = rm*sin(phi);
-    cm.z = -base_height;
-
-    // Calculate center of foot workspace
-    geometry_msgs::Point hip, cw;
-    cw = getCw(base_height);
-
-    // Calculate current foot center
-    // phi_i: current angle of the line connecting motion center and foot position
-    geometry_msgs::Point ux; // unit vector in body CF X-axis
-    ux.x = 1.0;
-    ux.y = 0.0;
-    geometry_msgs::Point cm_to_ci;
-    cm_to_ci.x = ci.x - cm.x;
-    cm_to_ci.y = ci.y - cm.y;
-    double phi_i = atan2(cm_to_ci.y, cm_to_ci.x);
-    // rmi = rmw always
-
-    geometry_msgs::Point cm_to_cw;
-    cm_to_cw.x = cw.x - cm.x;
-    cm_to_cw.y = cw.y - cm.y;
-    double phi_w = atan2(cm_to_cw.y, cm_to_cw.x);
-    double rmw = sqrt(pow(cm_to_cw.x, 2) + pow(cm_to_cw.y, 2));
+    updateCm(yaw_angle, base_height); // motion center
     
-    // theta: angle from rotation center to edge of foot WS wrt cm
-    // https://mathworld.wolfram.com/Circle-CircleIntersection.html
-    double x = (pow(rmw, 2) - pow(dwi, 2) + pow(rmw, 2))/(2.0*rmw);
-    double y = sqrt(pow(rmw, 2) - pow(x, 2));
-    double theta = asin(y/rmw); // y = rmw*sin(theta)
+    updateCw(base_height); // center of foot workspace
+
+    updatePhiIW();
+
+    updateTheta();
+
     stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
 
-    geometry_msgs::Point AEP;
-    AEP.x = rmw*cos(phi_w - theta) + cm.x;
-    AEP.y = rmw*sin(phi_w - theta) + cm.y;
-    AEP.z = -base_height;
-
-    geometry_msgs::Point cm_to_AEP;
-    cm_to_AEP.x = AEP.x - cm.x;
-    cm_to_AEP.y = AEP.y - cm.y;
-    double phi_AEP = atan2(cm_to_AEP.y, cm_to_AEP.x);
-
-    geometry_msgs::Point PEP;
-    PEP.x = rmw*cos(phi_w + theta) + cm.x;
-    PEP.y = rmw*sin(phi_w + theta) + cm.y;
-    PEP.z = -base_height;
-
-    geometry_msgs::Point cm_to_PEP;
-    cm_to_PEP.x = PEP.x - cm.x;
-    cm_to_PEP.y = PEP.y - cm.y;
-    double phi_PEP = atan2(cm_to_PEP.y, cm_to_PEP.x);
-
-    elapsed = ros::Time::now().toSec() - start;
-
-    double transfer_time;
-    double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, delta_phi;
-    double tG_plus, delta_tG, k_plus, delta_x, delta_y;
-
-    Tc = elapsed - last_elapsed; // control interval
-    last_elapsed = elapsed;
-    delta_phi = yaw*Tc;
+    updateAEPPEP();
 
     if (!initialized && stage == "Support Phase") // TODO: debug this
     {
@@ -223,100 +185,19 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
 
     if (!initialized)
     {
-        double offset = speed*elapsed;
-        ci.x = cw.x - offset*cos(yaw_angle);
-        ci.y = cw.y - offset*sin(yaw_angle);
-        ci.z = -base_height;
-        
-        if (ci == PEP)
-        {
-            ROS_INFO("######################    Switch to Transfer Phase    ######################\n");
-            stage = "Transfer Phase";
-            support_phase = 0.0;
-            transfer_phase = 0.0;
-            phi_i = phi_PEP;
-            ci = PEP;
-        }
+        initialization();
     }
 
     if (stage == "Support Phase" && gait_mode != "Default" && initialized)
     {
-        support_phase = (phi_i - phi_AEP)/(2.0 * theta);
-
-        if (support_phase >= 1.0)
-        {
-            ROS_INFO("######################    Switch to Transfer Phase    ######################\n");
-            stage = "Transfer Phase";
-            support_phase = 0.0;
-            transfer_phase = 0.0;
-            phi_i = phi_PEP;
-            ci = PEP;
-        }
-        else
-        {
-            ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
-            ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
-            ci.z = -base_height;
-        }
+        supportPhase();
     }
     else if (stage == "Transfer Phase" && gait_mode != "Default" && initialized)
     {
-        alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
-        d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
-        PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
-        d_PEP = PEP_to_AEP - d_AEP;
-        phi_plus = phi_i - phi_AEP;
-        
-        double current_height = ci.z + base_height;
-        double transfer_distance = PEP_to_AEP + stride_height;
-
-        if (phi_plus > 0.0) // lifting
-        {
-            // transfer_phase = abs((phi_i - phi_PEP)/(2.0 * theta));
-            transfer_phase = d_PEP/transfer_distance;
-            phase_diff = transfer_phase - last_transfer_phase;
-            last_transfer_phase = transfer_phase;
-            lowering_rate = stride_height/(1.0 - transfer_phase);
-
-            transfer_time = stride_time*(1.0 - duty_factor);
-            tG_plus = (1.0 - transfer_phase)*transfer_time;
-            delta_tG = delta_phi/(phi_plus/tG_plus); 
-            k_plus = round(tG_plus/delta_tG);
-
-            delta_x = (d_AEP + stride_height)*cos(alpha)/k_plus;
-            delta_y = (d_AEP + stride_height)*sin(alpha)/k_plus;
-
-            ci.x += delta_x;
-            ci.y += delta_y;
-            ci.z = LPF1(-stride_height, ci.z, 0.1);
-        }
-        else // lowering
-        {
-            transfer_phase += phase_diff;
-            if (transfer_phase >= 1.0)
-            {
-                ROS_INFO("######################    Switch to Support Phase    ######################\n");
-                stage = "Support Phase";
-                support_phase = 0.0;
-                transfer_phase = 0.0;
-                phi_i = phi_AEP;
-                ci = AEP;
-            }
-
-            ci.x = AEP.x;
-            ci.y = AEP.y;
-            ci.z -= lowering_rate*phase_diff;
-            if (ci.z < -base_height)
-            {
-                ci.z = -base_height;
-            }
-
-            ROS_INFO("Lowering");
-        }
+        transferPhase();
     }
-    else
+    else // Do nothing
     {
-        // Do nothing
         support_phase = 0.0;
         transfer_phase = 0.0;
     }
@@ -341,6 +222,7 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
     }
 
     // Build message
+    hexapod_control::Pose target_pose;
     target_pose.x = ci.x;
     target_pose.y = ci.y;
     target_pose.z = ci.z;
@@ -356,6 +238,217 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
         boost::bind(&SetTrajectoryAction::publishResult, this, _1, _2),
         boost::bind(&SetTrajectoryAction::activeCB, this),
         boost::bind(&SetTrajectoryAction::publishFeedback, this, _1));
+}
+
+void SetTrajectoryAction::initialization()
+{
+    double offset = speed*elapsed;
+    ci.x = cw.x - offset*cos(yaw_angle);
+    ci.y = cw.y - offset*sin(yaw_angle);
+    ci.z = -base_height;
+    
+    if (ci == PEP)
+    {
+        ROS_INFO("                        Switch to Transfer Phase                        \n");
+        stage = "Transfer Phase";
+        support_phase = 0.0;
+        transfer_phase = 0.0;
+        phi_i = phi_PEP;
+        ci = PEP;
+    }
+}
+
+void SetTrajectoryAction::supportPhase()
+{
+    support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
+
+    if (support_phase >= 1.0)
+    {
+        ROS_INFO("                        Switch to Transfer Phase                        \n");
+        stage = "Transfer Phase";
+        support_phase = 0.0;
+        transfer_phase = 0.0;
+        phi_i = phi_PEP;
+        phi_plus = phi_PEP - phi_AEP;
+        ci = PEP;
+    }
+    else
+    {
+        ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
+        ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
+        ci.z = -base_height;
+    }
+}
+
+void SetTrajectoryAction::transferPhase()
+{
+    alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
+    d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
+    PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+    d_PEP = PEP_to_AEP - d_AEP;
+    phi_plus = dir*(phi_i - phi_AEP);
+    
+    double current_height = ci.z + base_height;
+    double transfer_distance = PEP_to_AEP + stride_height;
+
+    if (phi_plus > 0.0) // lifting
+    {
+        // transfer_phase = abs((phi_i - phi_PEP)/(2.0 * theta));
+        transfer_phase = d_PEP/transfer_distance;
+        phase_diff = transfer_phase - last_transfer_phase;
+        last_transfer_phase = transfer_phase;
+        lowering_rate = stride_height/(1.0 - transfer_phase);
+
+        transfer_time = stride_time*(1.0 - duty_factor);
+        tG_plus = (1.0 - transfer_phase)*transfer_time;
+        delta_tG = abs(delta_phi)/(phi_plus/tG_plus); 
+        k_plus = round(tG_plus/delta_tG);
+
+        delta_x = (d_AEP + stride_height)*cos(alpha)/k_plus;
+        delta_y = (d_AEP + stride_height)*sin(alpha)/k_plus;
+
+        ci.x += delta_x;
+        ci.y += delta_y;
+        ci.z = LPF1(-stride_height, ci.z, 0.1);
+    }
+    else // lowering
+    {
+        transfer_phase += phase_diff;
+        if (transfer_phase >= 1.0)
+        {
+            ROS_INFO("                        Switch to Support Phase                        \n");
+            stage = "Support Phase";
+            support_phase = 0.0;
+            transfer_phase = 0.0;
+            phi_i = phi_AEP;
+            ci = AEP;
+        }
+
+        ci.x = AEP.x;
+        ci.y = AEP.y;
+        ci.z -= lowering_rate*phase_diff;
+        if (ci.z < -base_height)
+        {
+            ci.z = -base_height;
+        }
+
+        ROS_INFO("Lowering");
+    }
+}
+
+void SetTrajectoryAction::updateCm(const double& yaw_angle, const double& base_height)
+{
+    // phi: current angle of the line connecting motion center and body center
+    // geometry_msgs::Point ux; // unit vector in body CF X-axis
+    // ux.x = 1.0; ux.y = 0.0; ux.z = 0.0;
+    // double phi = atan2(ci.y, ci.x);
+    double phi = yaw_angle - M_PI_2;
+
+    cm.x = rm*cos(phi);
+    cm.y = rm*sin(phi);
+    cm.z = -base_height;
+}
+
+void SetTrajectoryAction::updateCw(const double& base_height)
+{
+    double foot_radius = base_radius + dcw;
+    cw.x = foot_radius*cos(hip_angle);
+    cw.y = foot_radius*sin(hip_angle);
+    cw.z = -base_height;
+}
+
+void SetTrajectoryAction::updatePhiIW()
+{
+    // phi_i: current angle of the line connecting motion center and foot position
+    cm_to_ci.x = ci.x - cm.x;
+    cm_to_ci.y = ci.y - cm.y;
+    phi_i = atan2(cm_to_ci.y, cm_to_ci.x);
+    // rmi = rmw always
+
+    cm_to_cw.x = cw.x - cm.x;
+    cm_to_cw.y = cw.y - cm.y;
+    phi_w = atan2(cm_to_cw.y, cm_to_cw.x);
+    rmw = sqrt(pow(cm_to_cw.x, 2) + pow(cm_to_cw.y, 2));
+}
+
+void SetTrajectoryAction::updateTheta()
+{
+    // theta: angle from rotation center to edge of foot WS wrt cm
+    // https://mathworld.wolfram.com/Circle-CircleIntersection.html
+    double x = (pow(rmw, 2) - pow(dwi, 2) + pow(rmw, 2))/(2.0*rmw);
+    double y = sqrt(pow(rmw, 2) - pow(x, 2));
+    theta = asin(y/rmw); // y = rmw*sin(theta)
+}
+
+void SetTrajectoryAction::updateAEPPEP()
+{
+    AEP.x = rmw*cos(phi_w - dir*theta) + cm.x;
+    AEP.y = rmw*sin(phi_w - dir*theta) + cm.y;
+    AEP.z = -base_height;
+
+    cm_to_AEP.x = AEP.x - cm.x;
+    cm_to_AEP.y = AEP.y - cm.y;
+    phi_AEP = atan2(cm_to_AEP.y, cm_to_AEP.x);
+
+    PEP.x = rmw*cos(phi_w + dir*theta) + cm.x;
+    PEP.y = rmw*sin(phi_w + dir*theta) + cm.y;
+    PEP.z = -base_height;
+
+    cm_to_PEP.x = PEP.x - cm.x;
+    cm_to_PEP.y = PEP.y - cm.y;
+    phi_PEP = atan2(cm_to_PEP.y, cm_to_PEP.x);
+}
+
+void SetTrajectoryAction::calcStepRadius(const double& base_height)
+{
+    double beta;
+    beta = asin(base_height/(femur_length + tibia_length)); // full stretch leg angle
+    dwi = (femur_length + tibia_length)*cos(beta)/2.0; // workspace radius
+    dcw = coxa_length + dwi; // radius from hip to workspace center
+
+    // Limit dwi to use smaller workspace radius without changing cw workspace center
+    dwi *= 0.7;
+}
+
+// 1st order low-pass filter
+double SetTrajectoryAction::LPF1(const double& goal, const double& z_prev, const double& rate)
+{
+    // https://dsp.stackexchange.com/questions/60277/is-the-typical-implementation-of-low-pass-filter-in-c-code-actually-not-a-typica
+    // rate must be between 0.0 and 1.0
+    // as rate approaches 0, the cutoff of the filter decreases
+    double z_next = (1 - rate) * z_prev + rate * goal; // "simplistic" low pass filter
+
+    return z_next;
+}
+
+void SetTrajectoryAction::jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
+{
+    sensor_msgs::JointState temp = *msg.get();
+    int hip_index, knee_index, ankle_index;
+    for (int i = 0; i < temp.name.size(); ++i)
+    {
+        std::string name_i = temp.name[i];
+        if (name_i.find(leg_name) != std::string::npos)
+        {
+            if (name_i.find("hip") != std::string::npos)
+            {
+                hip_index = i;
+            }
+            else if (name_i.find("knee") != std::string::npos)
+            {
+                knee_index = i;
+            }
+            else if (name_i.find("ankle") != std::string::npos)
+            {
+                ankle_index = i;
+            }
+        }
+    }
+
+    this->current_state.name     = {temp.name[hip_index],     temp.name[knee_index],     temp.name[ankle_index]};
+    this->current_state.position = {temp.position[hip_index], temp.position[knee_index], temp.position[ankle_index]};
+    this->current_state.velocity = {temp.velocity[hip_index], temp.velocity[knee_index], temp.velocity[ankle_index]};
+    this->current_state.effort   = {temp.effort[hip_index],   temp.effort[knee_index],   temp.effort[ankle_index]};
 }
 
 void SetTrajectoryAction::publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback)
@@ -404,71 +497,6 @@ void SetTrajectoryAction::buttonCB(const std_msgs::BoolConstPtr& msg)
             gait_type = "wave";
             break;
     }
-}
-
-geometry_msgs::Point SetTrajectoryAction::getCw(const double& base_height)
-{
-    geometry_msgs::Point cw;
-    double foot_radius = base_radius + dcw;
-    cw.x = foot_radius*cos(hip_angle);
-    cw.y = foot_radius*sin(hip_angle);
-    cw.z = -base_height;
-
-    return cw;
-}
-
-std::tuple<double, double> SetTrajectoryAction::calcStepRadius(const double& base_height)
-{
-    double beta, dwi, dcw;
-    beta = asin(base_height/(femur_length + tibia_length)); // full stretch leg angle
-    dwi = (femur_length + tibia_length)*cos(beta)/2.0; // workspace radius
-    dcw = coxa_length + dwi; // radius from hip to workspace center
-
-    // Limit dwi to use smaller workspace radius without changing cw workspace center
-    dwi *= 0.7;
-
-    return std::make_tuple(dwi, dcw);
-}
-
-// 1st order low-pass filter
-double SetTrajectoryAction::LPF1(const double& goal, const double& z_prev, const double& rate)
-{
-    // https://dsp.stackexchange.com/questions/60277/is-the-typical-implementation-of-low-pass-filter-in-c-code-actually-not-a-typica
-    // rate must be between 0.0 and 1.0
-    // as rate approaches 0, the cutoff of the filter decreases
-    double z_next = (1 - rate) * z_prev + rate * goal; // "simplistic" low pass filter
-
-    return z_next;
-}
-
-void SetTrajectoryAction::jointStatesCB(const sensor_msgs::JointStateConstPtr& msg)
-{
-    sensor_msgs::JointState temp = *msg.get();
-    int hip_index, knee_index, ankle_index;
-    for (int i = 0; i < temp.name.size(); ++i)
-    {
-        std::string name_i = temp.name[i];
-        if (name_i.find(leg_name) != std::string::npos)
-        {
-            if (name_i.find("hip") != std::string::npos)
-            {
-                hip_index = i;
-            }
-            else if (name_i.find("knee") != std::string::npos)
-            {
-                knee_index = i;
-            }
-            else if (name_i.find("ankle") != std::string::npos)
-            {
-                ankle_index = i;
-            }
-        }
-    }
-
-    this->current_state.name     = {temp.name[hip_index],     temp.name[knee_index],     temp.name[ankle_index]};
-    this->current_state.position = {temp.position[hip_index], temp.position[knee_index], temp.position[ankle_index]};
-    this->current_state.velocity = {temp.velocity[hip_index], temp.velocity[knee_index], temp.velocity[ankle_index]};
-    this->current_state.effort   = {temp.effort[hip_index],   temp.effort[knee_index],   temp.effort[ankle_index]};
 }
 
 int main(int argc, char **argv)
