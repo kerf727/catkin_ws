@@ -100,9 +100,7 @@ public:
             // TODO: fix max of map input. can be larger than 1.0 when both contribute
             speed = mapRange(abs(linearX) + abs(linearY), 0.0, 1.0, 0.0, max_speed);
             yaw_angle = atan2(linearY, linearX);
-            yaw = eps; //(yaw_angle <= 0.25*M_PI && yaw_angle >= -0.75*M_PI) ? eps : -eps;
-            // atan2 range is -pi to +pi; yaw is positive if on bottom half of y = x line
-            // TODO: check if above is accurate
+            yaw = eps;
         }
         // Rotate (Rx only)
         else if (linearY == 0.0 && angular != 0.0)
@@ -144,7 +142,7 @@ public:
             yaw = max_yaw;
         }
 
-        ROS_INFO("------------------------------------------------------------------------------------------------------");
+        ROS_INFO("--------------------------------------------------------------------------------");
         ROS_INFO("mode: %s, speed: %f, yaw: %f, yaw_angle: %f\n",
             gait_mode.c_str(), speed, yaw, yaw_angle);
 
