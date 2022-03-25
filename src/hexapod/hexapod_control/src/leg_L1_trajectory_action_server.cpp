@@ -46,11 +46,12 @@ public:
 
         calcStepRadius(base_height); // TODO: make base_height variable
 
-        updateCw(base_height); // initialize with current foot position
-        ci = cw;
+        updateCw(base_height);
+        ci = cw; // set ci to be workspace center to start
 
         ROS_INFO("initial ci: (%f, %f, %f); dwi: %f, dcw: %f", ci.x, ci.y, ci.z, dwi, dcw);
 
+        gait_type = "ripple";
         node.getParam("/hexapod/gait/" + gait_type + "/phase/" + leg_name, initial_phase);
         node.getParam("/hexapod/gait/" + gait_type + "/duty_factor", duty_factor);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
@@ -67,7 +68,7 @@ public:
             support_phase = (duty_factor - initial_phase)/duty_factor;
             transfer_phase = 0.0;
         }
-        ROS_INFO("initial_phase: %f, stage: %s", initial_phase, stage.c_str());
+        ROS_INFO("initial_phase: %f, stage: %s, support_phase: %f, transfer_phase: %f", initial_phase, stage.c_str(), support_phase, transfer_phase);
 
         initialized = false;
      
@@ -89,13 +90,8 @@ public:
 	}
 
 private:
-    void publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback);
-	void publishResult(const actionlib::SimpleClientGoalState& state,
-		const hexapod_control::SetPoseResult::ConstPtr& poseResult);
-	void activeCB();
-    void gaitModeCB(const std_msgs::StringConstPtr& msg);
+    
     void commandCB(const geometry_msgs::Vector3ConstPtr& msg);
-    void buttonCB(const std_msgs::BoolConstPtr& msg);
     void supportPhase();
     void transferPhase();
     void updateCm(const double& yaw_angle, const double& base_height);
@@ -107,6 +103,12 @@ private:
     double calcXYAngle(const geometry_msgs::Point& from, const geometry_msgs::Point& to);
     double LPF1(const double& goal, const double& z_prev, const double& rate);
     void jointStatesCB(const sensor_msgs::JointStateConstPtr& msg);
+    void publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback);
+	void publishResult(const actionlib::SimpleClientGoalState& state,
+		const hexapod_control::SetPoseResult::ConstPtr& poseResult);
+	void activeCB();
+    void gaitModeCB(const std_msgs::StringConstPtr& msg);
+    void buttonCB(const std_msgs::BoolConstPtr& msg);
     ros::NodeHandle node;
 	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client;
     ros::Subscriber jointStateSubscriber;
