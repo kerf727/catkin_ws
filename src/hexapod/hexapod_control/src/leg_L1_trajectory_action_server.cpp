@@ -47,7 +47,7 @@ public:
         calcStepRadius(base_height); // TODO: make base_height variable
 
         updateCw(base_height); // initialize with current foot position
-        ci = cw; // TODO: place ci at initial_phase position
+        ci = cw;
 
         ROS_INFO("initial ci: (%f, %f, %f); dwi: %f, dcw: %f", ci.x, ci.y, ci.z, dwi, dcw);
 
@@ -55,17 +55,17 @@ public:
         node.getParam("/hexapod/gait/" + gait_type + "/duty_factor", duty_factor);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
 
-        if (initial_phase < duty_factor)
-        {
-            stage = "Support Phase";
-            support_phase = initial_phase/duty_factor;
-            transfer_phase = 0.0;
-        }
-        else
+        if (initial_phase < 1.0 - duty_factor)
         {
             stage = "Transfer Phase";
             support_phase = 0.0;
-            transfer_phase = (initial_phase - duty_factor)/(1.0 - duty_factor);
+            transfer_phase = initial_phase/(1.0 - duty_factor);
+        }
+        else
+        {
+            stage = "Support Phase";
+            support_phase = (duty_factor - initial_phase)/duty_factor;
+            transfer_phase = 0.0;
         }
         ROS_INFO("initial_phase: %f, stage: %s", initial_phase, stage.c_str());
 
@@ -96,7 +96,6 @@ private:
     void gaitModeCB(const std_msgs::StringConstPtr& msg);
     void commandCB(const geometry_msgs::Vector3ConstPtr& msg);
     void buttonCB(const std_msgs::BoolConstPtr& msg);
-    void initialization();
     void supportPhase();
     void transferPhase();
     void updateCm(const double& yaw_angle, const double& base_height);
@@ -178,14 +177,11 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
 
     updateAEPPEP();
 
-    if (!initialized && stage == "Support Phase") // TODO: debug this
+    // TODO: place ci at initial_phase position
+    if (!initialized && gait_mode != "Default")
     {
+        ci = (stage == "Support Phase") ? AEP : PEP; // place at initial_phase position
         initialized = true;
-    }
-
-    if (!initialized)
-    {
-        initialization();
     }
 
     if (stage == "Support Phase" && gait_mode != "Default" && initialized)
@@ -238,24 +234,6 @@ void SetTrajectoryAction::commandCB(const geometry_msgs::Vector3ConstPtr& msg)
         boost::bind(&SetTrajectoryAction::publishResult, this, _1, _2),
         boost::bind(&SetTrajectoryAction::activeCB, this),
         boost::bind(&SetTrajectoryAction::publishFeedback, this, _1));
-}
-
-void SetTrajectoryAction::initialization()
-{
-    double offset = speed*elapsed;
-    ci.x = cw.x - offset*cos(yaw_angle);
-    ci.y = cw.y - offset*sin(yaw_angle);
-    ci.z = -base_height;
-    
-    if (ci == PEP)
-    {
-        ROS_INFO("                        Switch to Transfer Phase                        \n");
-        stage = "Transfer Phase";
-        support_phase = 0.0;
-        transfer_phase = 0.0;
-        phi_i = phi_PEP;
-        ci = PEP;
-    }
 }
 
 void SetTrajectoryAction::supportPhase()

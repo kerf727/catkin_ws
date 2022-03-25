@@ -1,3 +1,7 @@
+# Gait parameters
+# https://www.google.com/search?q=hexapod+walking+gaits&sxsrf=APq-WBsPbnadUnDv5RB3QpE-cA9ystIY2w:1648166224171&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjX7MnS-d_2AhW2jYkEHRcDAcsQ_AUoAXoECCEQAw&biw=2560&bih=1335&dpr=1#imgrc=l6X3FiYf26ycAM
+# phase is defined as when the transfer phase begins
+
 ripple:
   max_speed: 0.02
   max_yaw: 0.2
@@ -5,12 +9,12 @@ ripple:
   stride_height: 0.02
   stride_length: 0.02
   phase:
-    L1: 0.333
-    L2: 0.667
-    L3: 0.000
-    R1: 0.000
-    R2: 0.333
-    R3: 0.667
+    L1: 0.000
+    L2: 0.333
+    L3: 0.667
+    R1: 0.667
+    R2: 0.000
+    R3: 0.333
 
 tripod:
   max_speed: 0.02
@@ -22,12 +26,12 @@ tripod:
   stride_height: 0.02
   stride_length: 0.02
   phase:
-    L1: 0.5
-    L2: 0.0
-    L3: 0.5
-    R1: 0.0
-    R2: 0.5
-    R3: 0.0
+    L1: 0.0
+    L2: 0.5
+    L3: 0.0
+    R1: 0.5
+    R2: 0.0
+    R3: 0.5
 
 wave:
   max_speed: 0.02
@@ -39,9 +43,9 @@ wave:
   stride_height: 0.02
   stride_length: 0.02
   phase:
-    L1: 0.0
-    L2: 0.833
-    L3: 0.667
-    R1: 0.5
-    R2: 0.333
-    R3: 0.167
+    L1: 0.833
+    L2: 0.666
+    L3: 0.500
+    R1: 0.333
+    R2: 0.167
+    R3: 0.000
