@@ -2,7 +2,6 @@
 #include "hexapod_control/SetPoseAction.h"
 #include "hexapod_control/GaitAction.h"
 #include "hexapod_control/Pose.h"
-#include "hexapod_control/SolveFKPose.h"
 #include "std_msgs/String.h"
 #include "std_msgs/Float64.h"
 #include "std_msgs/Bool.h"
@@ -78,9 +77,6 @@ public:
         ROS_INFO("Subscribing to Joint States...");
         this->jointStateSubscriber = node.subscribe("/hexapod/joint_states", 10, &SetTrajectoryAction::jointStatesCB, this);
         
-        ROS_INFO("Subscribing to FKPoseSolver service...");
-        this->fkClient = node.serviceClient<hexapod_control::SolveFKPose>("/hexapod/leg_L1/fk");
-
         ROS_INFO("Leg %s trajectory action server ready.\n", leg_name.c_str());
     }
 
@@ -90,7 +86,6 @@ public:
 	}
 
 private:
-    
     void commandCB(const geometry_msgs::Vector3ConstPtr& msg);
     void supportPhase();
     void transferPhase();
@@ -116,7 +111,6 @@ private:
     ros::Subscriber commandSubscriber;
     ros::Subscriber buttonSubscriber;
     ros::ServiceClient linkStateClient;
-    ros::ServiceClient fkClient;
     hexapod_control::Pose current_pose;
     double start, t, elapsed, last_elapsed, Tc;
 	double initial_phase;
@@ -390,9 +384,9 @@ void SetTrajectoryAction::calcStepRadius(const double& base_height)
     dwi *= 0.7;
 }
 
-// 1st order low-pass filter
 double SetTrajectoryAction::LPF1(const double& goal, const double& z_prev, const double& rate)
 {
+    // 1st order low-pass filter
     // https://dsp.stackexchange.com/questions/60277/is-the-typical-implementation-of-low-pass-filter-in-c-code-actually-not-a-typica
     // rate must be between 0.0 and 1.0
     // as rate approaches 0, the cutoff of the filter decreases
