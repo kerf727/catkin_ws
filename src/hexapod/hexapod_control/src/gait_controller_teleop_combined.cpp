@@ -10,12 +10,12 @@ class GaitController
 {
 public:
     GaitController() :
-        L1_client("leg_L1_pose_action", true)//,
-        // L2_client("leg_L2_pose_action", true),
-        // L3_client("leg_L3_pose_action", true),
-        // R1_client("leg_R1_pose_action", true),
-        // R2_client("leg_R2_pose_action", true),
-        // R3_client("leg_R3_pose_action", true)
+        client_L1("leg_L1_pose_action", true),
+        client_L2("leg_L2_pose_action", true),
+        client_L3("leg_L3_pose_action", true),
+        client_R1("leg_R1_pose_action", true),
+        client_R2("leg_R2_pose_action", true),
+        client_R3("leg_R3_pose_action", true)
     {
         this->node = node;
 
@@ -24,12 +24,12 @@ public:
 		this->buttonSubscriber = node.subscribe("/hexapod/teleop/button", 10, &GaitController::buttonCB, this);
 		
         ROS_INFO("Waiting for Pose State Server...");
-        this->L1_client.waitForServer(ros::Duration(30));
-        // this->L2_client.waitForServer(ros::Duration(30));
-        // this->L3_client.waitForServer(ros::Duration(30));
-        // this->R1_client.waitForServer(ros::Duration(30));
-        // this->R2_client.waitForServer(ros::Duration(30));
-        // this->R3_client.waitForServer(ros::Duration(30));
+        this->client_L1.waitForServer(ros::Duration(30));
+        this->client_L2.waitForServer(ros::Duration(30));
+        this->client_L3.waitForServer(ros::Duration(30));
+        this->client_R1.waitForServer(ros::Duration(30));
+        this->client_R2.waitForServer(ros::Duration(30));
+        this->client_R3.waitForServer(ros::Duration(30));
 
         ROS_INFO("Initializing constants...");
         node.getParam("/hexapod/geometry/coxa_length", coxa_length);
@@ -52,10 +52,13 @@ public:
 
         start = ros::Time::now().toSec();
 
-        ux.x = 1.0;
-        ux.y = 0.0;
-
         std::tie(dcw, dwi) = calcStepRadius(base_height); // TODO: make base_height variable
+        cw_L1 = calcCw(base_height, base_radius, hip_angle_L1);
+        cw_L2 = calcCw(base_height, base_radius, hip_angle_L2);
+        cw_L3 = calcCw(base_height, base_radius, hip_angle_L3);
+        cw_R1 = calcCw(base_height, base_radius, hip_angle_R1);
+        cw_R2 = calcCw(base_height, base_radius, hip_angle_R2);
+        cw_R3 = calcCw(base_height, base_radius, hip_angle_R3);
 
         node.getParam("/hexapod/gait/" + gait_type + "/max_speed", max_speed);
         node.getParam("/hexapod/gait/" + gait_type + "/max_yaw", max_yaw);
@@ -68,31 +71,7 @@ public:
         node.getParam("/hexapod/gait/" + gait_type + "/duty_factor", duty_factor);
         node.getParam("/hexapod/gait/" + gait_type + "/stride_height", stride_height);
 
-        // TODO: repeat for 6 legs
-        for (int i = 0; i < num_legs; i++)
-        {
-            leg_name = "L1";
-            
-            cw = calcCw(base_height, base_radius, hip_angle_L1);
-            ci = cw; // set ci to be workspace center to start
-
-            if (phase_L1 < 1.0 - duty_factor)
-            {
-                stage = "Transfer Phase";
-                support_phase = 0.0;
-                transfer_phase = phase_L1/(1.0 - duty_factor);
-            }
-            else
-            {
-                stage = "Support Phase";
-                support_phase = (duty_factor - phase_L1)/duty_factor;
-                transfer_phase = 0.0;
-            }
-        }
-
         ROS_INFO("Gait controller ready.");
-        ROS_INFO("initial_phase: %f, stage: %s, support_phase: %f, transfer_phase: %f", initial_phase, stage.c_str(), support_phase, transfer_phase);
-        ROS_INFO("initial ci: (%f, %f, %f); dwi: %f, dcw: %f", ci.x, ci.y, ci.z, dwi, dcw);
     }
 
     ~GaitController()
@@ -101,15 +80,13 @@ public:
     }
 
 private:
-    std::string leg_name;
-    double num_legs = 1;
     ros::NodeHandle node;
-	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> L1_client;
-	// actionlib::SimpleActionClient<hexapod_control::SetPoseAction> L2_client;
-	// actionlib::SimpleActionClient<hexapod_control::SetPoseAction> L3_client;
-	// actionlib::SimpleActionClient<hexapod_control::SetPoseAction> R1_client;
-	// actionlib::SimpleActionClient<hexapod_control::SetPoseAction> R2_client;
-	// actionlib::SimpleActionClient<hexapod_control::SetPoseAction> R3_client;
+	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client_L1;
+	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client_L2;
+	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client_L3;
+	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client_R1;
+	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client_R2;
+	actionlib::SimpleActionClient<hexapod_control::SetPoseAction> client_R3;
     ros::Subscriber twistSubscriber;
     ros::Subscriber buttonSubscriber;
     ros::ServiceClient linkStateClient;
@@ -117,16 +94,18 @@ private:
     double start, t, elapsed, last_elapsed, Tc;
     double femur_length, tibia_length, coxa_length, base_radius, base_height;
     double hip_angle_L1, hip_angle_L2, hip_angle_L3, hip_angle_R1, hip_angle_R2, hip_angle_R3;
-	double initial_phase;
     double phase_L1, phase_L2, phase_L3, phase_R1, phase_R2, phase_R3;
     double speed, yaw, yaw_angle;
     double max_speed, max_yaw;
+    double rm, delta_phi, dir;
     std::string gait_mode;
 	double stride_time, stride_height, duty_factor;
-    geometry_msgs::Point ci, cm, cw, hip, ux;
-    double support_phase, transfer_phase;
+    geometry_msgs::Point ci_L1, ci_L2, ci_L3, ci_R1, ci_R2, ci_R3;
+    geometry_msgs::Point cw_L1, cw_L2, cw_L3, cw_R1, cw_R2, cw_R3;
+    geometry_msgs::Point cm;
+    // double support_phase, transfer_phase;
     double dwi, dcw;
-    double last_transfer_phase, phase_diff, lowering_rate;
+    double last_transfer_phase, phase_diff, lowering_rate; // TODO: deal with these
     bool initialized = false;
     bool B_button = false;
     int gait_counter = 0;
@@ -248,19 +227,12 @@ private:
         ROS_INFO("mode: %s, speed: %f, yaw: %f, yaw_angle: %f\n",
             gait_mode.c_str(), speed, yaw, yaw_angle);
 
-        updateLegs(speed, yaw, yaw_angle, gait_mode);
+        updateAllLegs(speed, yaw, yaw_angle, gait_mode);
     }
 
-    void updateLegs(
+    void updateAllLegs(
         const double& speed, const double& yaw, const double& yaw_angle, const std::string& gait_mode)
     {
-        geometry_msgs::Point AEP, PEP, cm_to_AEP, cm_to_PEP;
-        double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, delta_phi;
-        double phi_i, phi_w, phi_AEP, phi_PEP;
-        double rm, rmw, theta, dir;
-        double transfer_time, tG_plus, delta_tG, k_plus, delta_x, delta_y;
-        double current_height, transfer_distance;
-        
         elapsed = ros::Time::now().toSec() - start;
 
         Tc = elapsed - last_elapsed; // control interval
@@ -277,106 +249,121 @@ private:
             ROS_WARN("Divide by zero error. Yaw cannot be zero. %s", e.what());
         }
 
+        cm = calcCm(yaw_angle, rm, base_height); // motion center
         dir = (yaw > 0) ? 1.0 : -1.0;
 
-        cm = calcCm(yaw_angle, rm, base_height); // motion center
+        geometry_msgs::Point ci_L1 = updateOneLeg(ci_L1, cw_L1, phase_L1, hip_angle_L1);
+        geometry_msgs::Point ci_L2 = updateOneLeg(ci_L2, cw_L2, phase_L2, hip_angle_L2);
+        geometry_msgs::Point ci_L3 = updateOneLeg(ci_L3, cw_L3, phase_L3, hip_angle_L3);
+        geometry_msgs::Point ci_R1 = updateOneLeg(ci_R1, cw_R1, phase_R1, hip_angle_R1);
+        geometry_msgs::Point ci_R2 = updateOneLeg(ci_R2, cw_R2, phase_R2, hip_angle_R2);
+        geometry_msgs::Point ci_R3 = updateOneLeg(ci_R3, cw_R3, phase_R3, hip_angle_R3);
 
-        // TODO: repeat for 6 legs
-        for (int i = 0; i < num_legs; i++)
+        sendL1PoseGoal(ci_L1);
+        sendL2PoseGoal(ci_L2);
+        sendL3PoseGoal(ci_L3);
+        sendR1PoseGoal(ci_R1);
+        sendR2PoseGoal(ci_R2);
+        sendR3PoseGoal(ci_R3);
+    }
+// TODO: need to deal with shared global variables issue. mostly the phase_diff, lowering_rate, etc
+    geometry_msgs::Point updateOneLeg(
+        const geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
+        const double& phase, const double& hip_angle)
+    {
+        geometry_msgs::Point new_ci, cw, AEP, PEP, cm_to_AEP, cm_to_PEP;
+        double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus;
+        double phi_i, phi_w, phi_AEP, phi_PEP;
+        double rmw, theta;
+        double transfer_time, tG_plus, delta_tG, k_plus;
+        double current_height, transfer_distance;
+        double support_phase, transfer_phase;
+
+        phi_i = calcPhiI(cm, ci);
+        std::tie(phi_w, rmw) = calcPhiW(cm, cw);
+
+        theta = calcTheta(rmw, dwi);
+        stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
+
+        std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
+        std::tie(phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP);
+
+        if (!initialized && gait_mode == "Default")
         {
-            leg_name = "L1";
+            stage = (phase < 1.0 - duty_factor) ? "Transfer Phase" : "Support Phase";
+            return cw;
+        }
 
-            cw = calcCw(base_height, base_radius, hip_angle_L1); // center of foot workspace
+        if (!initialized && gait_mode != "Default")
+        {
+            initialized = true;
+            return (stage == "Support Phase") ? AEP : PEP;
+        }
 
-            phi_i = calcPhiI(cm, ci);
-            std::tie(phi_w, rmw) = calcPhiW(cm, cw);
-
-            theta = calcTheta(rmw, dwi);
-            stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
-
-            std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
-            std::tie(phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP);
-
-            if (!initialized && gait_mode != "Default")
+        if (stage == "Support Phase" && gait_mode != "Default" && initialized)
+        {
+            support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
+            if (support_phase >= 1.0)
             {
-                ci = (stage == "Support Phase") ? AEP : PEP; // place at initial_phase position
-                initialized = true;
+                stage = "Transfer Phase";
+                new_ci = PEP;
             }
-
-            if (stage == "Support Phase" && gait_mode != "Default" && initialized)
+            else
             {
-                support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
-                if (support_phase >= 1.0)
-                {
-                    stage = "Transfer Phase";
-                    support_phase = 0.0;
-                    transfer_phase = 0.0;
-                    phi_i = phi_PEP;
-                    phi_plus = phi_PEP - phi_AEP;
-                    ci = PEP;
-                }
-                else
-                {
-                    ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
-                    ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
-                    ci.z = -base_height;
-                }
+                new_ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
+                new_ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
+                new_ci.z = -base_height;
             }
-            else if (stage == "Transfer Phase" && gait_mode != "Default" && initialized)
+        }
+        else if (stage == "Transfer Phase" && gait_mode != "Default" && initialized)
+        {
+            alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
+            d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
+            PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+            d_PEP = PEP_to_AEP - d_AEP;
+            phi_plus = dir*(phi_i - phi_AEP);
+            current_height = ci.z + base_height;
+            transfer_distance = PEP_to_AEP + stride_height;
+
+            if (phi_plus > 0.0) // lifting
             {
-                alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
-                d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
-                PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
-                d_PEP = PEP_to_AEP - d_AEP;
-                phi_plus = dir*(phi_i - phi_AEP);
-                current_height = ci.z + base_height;
-                transfer_distance = PEP_to_AEP + stride_height;
+                // transfer_phase = abs((phi_i - phi_PEP)/(2.0 * theta));
+                transfer_phase = d_PEP/transfer_distance;
+                phase_diff = transfer_phase - last_transfer_phase;
+                last_transfer_phase = transfer_phase;
+                lowering_rate = stride_height/(1.0 - transfer_phase);
 
-                if (phi_plus > 0.0) // lifting
-                {
-                    // transfer_phase = abs((phi_i - phi_PEP)/(2.0 * theta));
-                    transfer_phase = d_PEP/transfer_distance;
-                    phase_diff = transfer_phase - last_transfer_phase;
-                    last_transfer_phase = transfer_phase;
-                    lowering_rate = stride_height/(1.0 - transfer_phase);
+                transfer_time = stride_time*(1.0 - duty_factor);
+                tG_plus = (1.0 - transfer_phase)*transfer_time;
+                delta_tG = abs(delta_phi)/(phi_plus/tG_plus); 
+                k_plus = round(tG_plus/delta_tG);
 
-                    transfer_time = stride_time*(1.0 - duty_factor);
-                    tG_plus = (1.0 - transfer_phase)*transfer_time;
-                    delta_tG = abs(delta_phi)/(phi_plus/tG_plus); 
-                    k_plus = round(tG_plus/delta_tG);
-
-                    ci.x += (d_AEP + stride_height)*cos(alpha)/k_plus;
-                    ci.y += (d_AEP + stride_height)*sin(alpha)/k_plus;
-                    ci.z = LPF1(-stride_height, ci.z, 0.1);
-                }
-                else // lowering
-                {
-                    transfer_phase += phase_diff;
-                    if (transfer_phase >= 1.0)
-                    {
-                        stage = "Support Phase";
-                        support_phase = 0.0;
-                        transfer_phase = 0.0;
-                        phi_i = phi_AEP;
-                        ci = AEP;
-                    }
-
-                    ci.x = AEP.x;
-                    ci.y = AEP.y;
-                    ci.z -= lowering_rate*phase_diff;
-                    if (ci.z < -base_height)
-                    {
-                        ci.z = -base_height;
-                    }
-
-                    ROS_INFO("Lowering");
-                }
+                new_ci.x = ci.x + (d_AEP + stride_height)*cos(alpha)/k_plus;
+                new_ci.y = ci.y + (d_AEP + stride_height)*sin(alpha)/k_plus;
+                new_ci.z = LPF1(-stride_height, ci.z, 0.1);
             }
-            else // Do nothing
+            else // lowering
             {
-                support_phase = 0.0;
-                transfer_phase = 0.0;
+                transfer_phase += phase_diff;
+                if (transfer_phase >= 1.0)
+                {
+                    stage = "Support Phase";
+                    new_ci = AEP;
+                }
+
+                new_ci.x = AEP.x;
+                new_ci.y = AEP.y;
+                new_ci.z = ci.z - lowering_rate*phase_diff;
+                if (new_ci.z < -base_height)
+                {
+                    new_ci.z = -base_height;
+                }
+
+                ROS_INFO("Lowering");
             }
+        }
+        else // Do nothing
+        {
         }
 
         if (gait_mode != "Default")
@@ -393,27 +380,11 @@ private:
                     transfer_time, phi_plus, tG_plus, delta_tG);
                 ROS_INFO("lowering_rate: %f, phase_diff: %f", lowering_rate, phase_diff);
             }
-            ROS_INFO("cm: (%f, %f);   ci: (%f, %f, %f)\n",
-                cm.x, cm.y, ci.x, ci.y, ci.z);
+            ROS_INFO("cm: (%f, %f);    ci: (%f, %f, %f)\n",
+                cm.x, cm.y, new_ci.x, new_ci.y, new_ci.z);
         }
 
-        // Build message
-        hexapod_control::Pose target_pose;
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.goal = target_pose;
-        poseAction.eps = eps;
-        this->L1_client.sendGoal(poseAction,
-            boost::bind(&GaitController::publishResult, this, _1, _2),
-            boost::bind(&GaitController::activeCB, this),
-            boost::bind(&GaitController::publishFeedback, this, _1));
+        return new_ci;
     }
 
     geometry_msgs::Point calcCm(
@@ -564,6 +535,133 @@ private:
     {
 
     }
+
+    void sendL1PoseGoal(const geometry_msgs::Point& ci)
+    {
+        // Build message
+        hexapod_control::Pose target_pose;
+        target_pose.x = ci.x;
+        target_pose.y = ci.y;
+        target_pose.z = ci.z;
+        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+
+        // Send goal to pose action client
+        hexapod_control::SetPoseGoal poseAction;
+        poseAction.eps = eps;
+        poseAction.goal = target_pose;
+        client_L1.sendGoal(poseAction,
+            boost::bind(&GaitController::publishResult, this, _1, _2),
+            boost::bind(&GaitController::activeCB, this),
+            boost::bind(&GaitController::publishFeedback, this, _1));
+    }
+
+    void sendL2PoseGoal(const geometry_msgs::Point& ci)
+    {
+        // Build message
+        hexapod_control::Pose target_pose;
+        target_pose.x = ci.x;
+        target_pose.y = ci.y;
+        target_pose.z = ci.z;
+        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+
+        // Send goal to pose action client
+        hexapod_control::SetPoseGoal poseAction;
+        poseAction.eps = eps;
+        poseAction.goal = target_pose;
+        client_L2.sendGoal(poseAction,
+            boost::bind(&GaitController::publishResult, this, _1, _2),
+            boost::bind(&GaitController::activeCB, this),
+            boost::bind(&GaitController::publishFeedback, this, _1));
+    }
+
+    void sendL3PoseGoal(const geometry_msgs::Point& ci)
+    {
+        // Build message
+        hexapod_control::Pose target_pose;
+        target_pose.x = ci.x;
+        target_pose.y = ci.y;
+        target_pose.z = ci.z;
+        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+
+        // Send goal to pose action client
+        hexapod_control::SetPoseGoal poseAction;
+        poseAction.eps = eps;
+        poseAction.goal = target_pose;
+        client_L3.sendGoal(poseAction,
+            boost::bind(&GaitController::publishResult, this, _1, _2),
+            boost::bind(&GaitController::activeCB, this),
+            boost::bind(&GaitController::publishFeedback, this, _1));
+    }
+
+    void sendR1PoseGoal(const geometry_msgs::Point& ci)
+    {
+        // Build message
+        hexapod_control::Pose target_pose;
+        target_pose.x = ci.x;
+        target_pose.y = ci.y;
+        target_pose.z = ci.z;
+        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+
+        // Send goal to pose action client
+        hexapod_control::SetPoseGoal poseAction;
+        poseAction.eps = eps;
+        poseAction.goal = target_pose;
+        client_R1.sendGoal(poseAction,
+            boost::bind(&GaitController::publishResult, this, _1, _2),
+            boost::bind(&GaitController::activeCB, this),
+            boost::bind(&GaitController::publishFeedback, this, _1));
+    }
+
+    void sendR2PoseGoal(const geometry_msgs::Point& ci)
+    {
+        // Build message
+        hexapod_control::Pose target_pose;
+        target_pose.x = ci.x;
+        target_pose.y = ci.y;
+        target_pose.z = ci.z;
+        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+
+        // Send goal to pose action client
+        hexapod_control::SetPoseGoal poseAction;
+        poseAction.eps = eps;
+        poseAction.goal = target_pose;
+        client_R2.sendGoal(poseAction,
+            boost::bind(&GaitController::publishResult, this, _1, _2),
+            boost::bind(&GaitController::activeCB, this),
+            boost::bind(&GaitController::publishFeedback, this, _1));
+    }
+
+    void sendR3PoseGoal(const geometry_msgs::Point& ci)
+    {
+        // Build message
+        hexapod_control::Pose target_pose;
+        target_pose.x = ci.x;
+        target_pose.y = ci.y;
+        target_pose.z = ci.z;
+        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+
+        // Send goal to pose action client
+        hexapod_control::SetPoseGoal poseAction;
+        poseAction.eps = eps;
+        poseAction.goal = target_pose;
+        client_R3.sendGoal(poseAction,
+            boost::bind(&GaitController::publishResult, this, _1, _2),
+            boost::bind(&GaitController::activeCB, this),
+            boost::bind(&GaitController::publishFeedback, this, _1));
+    }
+
 };
 
 int main(int argc, char **argv)
