@@ -258,12 +258,19 @@ private:
         cm = calcCm(yaw_angle, rm, base_height); // motion center
         dir = (yaw > 0) ? 1.0 : -1.0;
 
-        std::tie(ci_L1, stage_L1) = updateOneLeg(ci_L1, cw_L1, phase_L1, stage_L1, false);
-        std::tie(ci_L2, stage_L2) = updateOneLeg(ci_L2, cw_L2, phase_L2, stage_L2, true);
-        std::tie(ci_L3, stage_L3) = updateOneLeg(ci_L3, cw_L3, phase_L3, stage_L3, false);
-        std::tie(ci_R1, stage_R1) = updateOneLeg(ci_R1, cw_R1, phase_R1, stage_R1, false);
-        std::tie(ci_R2, stage_R2) = updateOneLeg(ci_R2, cw_R2, phase_R2, stage_R2, false);
-        std::tie(ci_R3, stage_R3) = updateOneLeg(ci_R3, cw_R3, phase_R3, stage_R3, false);
+        ci_L1 = updateOneLeg(ci_L1, cw_L1, phase_L1, stage_L1, true);
+        ci_L2 = updateOneLeg(ci_L2, cw_L2, phase_L2, stage_L2, false);
+        ci_L3 = updateOneLeg(ci_L3, cw_L3, phase_L3, stage_L3, false);
+        ci_R1 = updateOneLeg(ci_R1, cw_R1, phase_R1, stage_R1, false);
+        ci_R2 = updateOneLeg(ci_R2, cw_R2, phase_R2, stage_R2, false);
+        ci_R3 = updateOneLeg(ci_R3, cw_R3, phase_R3, stage_R3, false);
+
+        ROS_INFO("L1: (%f, %f, %f)", ci_L1.x, ci_L1.y, ci_L1.z);
+        ROS_INFO("L2: (%f, %f, %f)", ci_L2.x, ci_L2.y, ci_L2.z);
+        ROS_INFO("L3: (%f, %f, %f)", ci_L3.x, ci_L3.y, ci_L3.z);
+        ROS_INFO("R1: (%f, %f, %f)", ci_R1.x, ci_R1.y, ci_R1.z);
+        ROS_INFO("R2: (%f, %f, %f)", ci_R2.x, ci_R2.y, ci_R2.z);
+        ROS_INFO("R3: (%f, %f, %f)", ci_R3.x, ci_R3.y, ci_R3.z);
 
         sendL1PoseGoal(ci_L1);
         sendL2PoseGoal(ci_L2);
@@ -273,7 +280,7 @@ private:
         sendR3PoseGoal(ci_R3);
     }
 
-    std::tuple<geometry_msgs::Point, std::string> updateOneLeg(
+    geometry_msgs::Point updateOneLeg(
         const geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
         const double& phase, std::string& stage, const bool& verbose)
     {
@@ -294,6 +301,18 @@ private:
         std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
         std::tie(phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP);
 
+        // Fix for L2 angle pi -> -pi crossover
+        if (phi_PEP > M_PI_2 && phi_AEP < -M_PI_2)
+        {
+            phi_AEP += 2*M_PI;
+            phi_i += (phi_i < 0.0) ? 2*M_PI : 0;
+        }
+        else if (phi_AEP > M_PI_2 && phi_PEP < -M_PI_2)
+        {
+            phi_PEP += 2*M_PI;
+            phi_i += (phi_i < 0.0) ? 2*M_PI : 0;
+        }
+
         if (!initialized && gait_mode == "Default")
         {
             stage = (phase < 1.0 - duty_factor) ? "Transfer Phase" : "Support Phase";
@@ -302,29 +321,20 @@ private:
             {
                 ROS_INFO("Not initialized. Stage: %s", stage.c_str());
             }
-
-            std::tuple<geometry_msgs::Point, std::string> result(new_ci, stage);
-            return result;
         }
-
-        if (!initialized && gait_mode != "Default")
+        else if (!initialized && gait_mode != "Default")
         {
-            ROS_INFO("Is this ever reached?");
             initialized = true;
             new_ci = (stage == "Support Phase") ? AEP : PEP;
-            // TODO: initialization might not be working. too fast to move leg to correct AEP/PEP?
             if (verbose)
             {
                 ROS_INFO("Initialized. Stage: %s, ci: (%f, %f, %f)", stage.c_str(), new_ci.x, new_ci.y, new_ci.z);
             }
-
-            std::tuple<geometry_msgs::Point, std::string> result(new_ci, stage);
-            return result;
         }
-
-        if (stage == "Support Phase" && gait_mode != "Default" && initialized)
+        else if (stage == "Support Phase" && gait_mode != "Default" && initialized)
         {
             support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
+            transfer_phase = 0.0;
             if (support_phase >= 1.0)
             {
                 stage = "Transfer Phase";
@@ -347,6 +357,7 @@ private:
             
             transfer_distance = PEP_to_AEP + stride_height;
             transfer_phase = d_PEP/transfer_distance;
+            support_phase = 0.0;
             transfer_time = stride_time*(1.0 - duty_factor);
             tG_plus = (1.0 - transfer_phase)*transfer_time;
             delta_tG = abs(delta_phi/(phi_plus/tG_plus));
@@ -372,7 +383,8 @@ private:
                 new_ci.x = AEP.x;
                 new_ci.y = AEP.y;
                 // new_ci.z += (-stride_height - new_ci.z)/k_plus;
-                new_ci.z = ci.z - stride_height/10.0; // TODO: avoid hard-coding this by calculating k_plus using all legs
+                new_ci.z = ci.z - stride_height/10.0;
+                // TODO: avoid hard-coding this by calculating k_plus using all legs
 
                 if (new_ci.z < -base_height)
                 {
@@ -411,8 +423,7 @@ private:
             }
         }
 
-        std::tuple<geometry_msgs::Point, std::string> result(new_ci, stage);
-        return result;
+        return new_ci;
     }
 
     geometry_msgs::Point calcCm(
