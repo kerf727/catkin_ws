@@ -26,7 +26,8 @@
     <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
     
     <!-- Start up gait controller -->
-    <node name="gait_controller_teleop_combined" pkg="hexapod_control" type="gait_controller_teleop_combined" respawn="false" output="screen"/>
+    <!-- <node name="gait_controller_teleop_combined" pkg="hexapod_control" type="gait_controller_teleop_combined" respawn="false" output="screen"/> -->
+    <node name="gait_controller_teleop_sync" pkg="hexapod_control" type="gait_controller_teleop_sync" respawn="false" output="screen"/>
 
     <!-- Start up force sensor and stability stuff -->
     <!-- <node name="force_sensor_node" pkg="hexapod_control" type="force_sensor_node" respawn="true"/>
