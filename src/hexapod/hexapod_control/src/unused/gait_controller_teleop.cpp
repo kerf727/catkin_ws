@@ -9,6 +9,8 @@
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Vector3.h"
 
+// Expects 6 Trajectory Action Servers to receive published gait command
+
 class GaitController
 {
 public:
