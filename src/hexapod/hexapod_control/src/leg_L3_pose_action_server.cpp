@@ -53,6 +53,7 @@ public:
         {
             this->actionResult.error_code = -1;
             server.setSucceeded(this->actionResult);
+            return;
         }
         this->targetx = goal->goal.x;
         this->targety = goal->goal.y;
