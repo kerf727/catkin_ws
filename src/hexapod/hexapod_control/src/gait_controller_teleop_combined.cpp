@@ -110,10 +110,13 @@ private:
     geometry_msgs::Point cw_L1, cw_L2, cw_L3, cw_R1, cw_R2, cw_R3;
     geometry_msgs::Point cm;
     std::string stage_L1, stage_L2, stage_L3, stage_R1, stage_R2, stage_R3;
-    // double support_phase, transfer_phase;
     double dwi, dcw;
-    // double last_transfer_phase, phase_diff;
-    bool initialized = false;
+    bool initialized_L1 = false;
+    bool initialized_L2 = false;
+    bool initialized_L3 = false;
+    bool initialized_R1 = false;
+    bool initialized_R2 = false;
+    bool initialized_R3 = false;
     bool B_button = false;
     int gait_counter = 0;
     std::string gait_type = "ripple";
@@ -258,19 +261,14 @@ private:
         cm = calcCm(yaw_angle, rm, base_height); // motion center
         dir = (yaw > 0) ? 1.0 : -1.0;
 
-        ci_L1 = updateOneLeg(ci_L1, cw_L1, phase_L1, stage_L1, true);
-        ci_L2 = updateOneLeg(ci_L2, cw_L2, phase_L2, stage_L2, false);
-        ci_L3 = updateOneLeg(ci_L3, cw_L3, phase_L3, stage_L3, false);
-        ci_R1 = updateOneLeg(ci_R1, cw_R1, phase_R1, stage_R1, false);
-        ci_R2 = updateOneLeg(ci_R2, cw_R2, phase_R2, stage_R2, false);
-        ci_R3 = updateOneLeg(ci_R3, cw_R3, phase_R3, stage_R3, false);
-
-        ROS_INFO("L1: (%f, %f, %f)", ci_L1.x, ci_L1.y, ci_L1.z);
-        ROS_INFO("L2: (%f, %f, %f)", ci_L2.x, ci_L2.y, ci_L2.z);
-        ROS_INFO("L3: (%f, %f, %f)", ci_L3.x, ci_L3.y, ci_L3.z);
-        ROS_INFO("R1: (%f, %f, %f)", ci_R1.x, ci_R1.y, ci_R1.z);
-        ROS_INFO("R2: (%f, %f, %f)", ci_R2.x, ci_R2.y, ci_R2.z);
-        ROS_INFO("R3: (%f, %f, %f)", ci_R3.x, ci_R3.y, ci_R3.z);
+        double sp_L1, sp_L2, sp_L3, sp_R1, sp_R2, sp_R3; // support phase
+        double tp_L1, tp_L2, tp_L3, tp_R1, tp_R2, tp_R3; // transfer phase
+        std::tie(sp_L1, tp_L1) = updateOneLeg(ci_L1, stage_L1, initialized_L1, cw_L1, phase_L1, 0);
+        std::tie(sp_L2, tp_L2) = updateOneLeg(ci_L2, stage_L2, initialized_L2, cw_L2, phase_L2, 1);
+        std::tie(sp_L3, tp_L3) = updateOneLeg(ci_L3, stage_L3, initialized_L3, cw_L3, phase_L3, 0);
+        std::tie(sp_R1, tp_R1) = updateOneLeg(ci_R1, stage_R1, initialized_R1, cw_R1, phase_R1, 0);
+        std::tie(sp_R2, tp_R2) = updateOneLeg(ci_R2, stage_R2, initialized_R2, cw_R2, phase_R2, 0);
+        std::tie(sp_R3, tp_R3) = updateOneLeg(ci_R3, stage_R3, initialized_R3, cw_R3, phase_R3, 0);
 
         sendL1PoseGoal(ci_L1);
         sendL2PoseGoal(ci_L2);
@@ -278,25 +276,33 @@ private:
         sendR1PoseGoal(ci_R1);
         sendR2PoseGoal(ci_R2);
         sendR3PoseGoal(ci_R3);
+
+        // TODO: Check sp, tp and find where errors occur
+        ROS_INFO("sp: %f, tp: %f, L1: (%f, %f, %f)", sp_L1, tp_L1, ci_L1.x, ci_L1.y, ci_L1.z);
+        ROS_INFO("sp: %f, tp: %f, L2: (%f, %f, %f)", sp_L2, tp_L2, ci_L2.x, ci_L2.y, ci_L2.z);
+        ROS_INFO("sp: %f, tp: %f, L3: (%f, %f, %f)", sp_L3, tp_L3, ci_L3.x, ci_L3.y, ci_L3.z);
+        ROS_INFO("sp: %f, tp: %f, R1: (%f, %f, %f)", sp_R1, tp_R1, ci_R1.x, ci_R1.y, ci_R1.z);
+        ROS_INFO("sp: %f, tp: %f, R2: (%f, %f, %f)", sp_R2, tp_R2, ci_R2.x, ci_R2.y, ci_R2.z);
+        ROS_INFO("sp: %f, tp: %f, R3: (%f, %f, %f)", sp_R3, tp_R3, ci_R3.x, ci_R3.y, ci_R3.z);
     }
 
-    geometry_msgs::Point updateOneLeg(
-        const geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
-        const double& phase, std::string& stage, const bool& verbose)
+    std::tuple<double, double> updateOneLeg(
+        geometry_msgs::Point& ci, std::string& stage, bool& initialized,
+        const geometry_msgs::Point& cw, const double& phase, const int& verbose)
     {
-        geometry_msgs::Point new_ci, AEP, PEP, cm_to_AEP, cm_to_PEP;
+        geometry_msgs::Point AEP, PEP, cm_to_AEP, cm_to_PEP;
         double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus;
         double phi_i, phi_w, phi_AEP, phi_PEP;
         double rmw, theta;
         double transfer_time, tG_plus, delta_tG, k_plus;
         double transfer_distance;
-        double support_phase, transfer_phase, lowering_rate;
+        double support_phase, transfer_phase;
 
         phi_i = calcPhiI(cm, ci);
         std::tie(phi_w, rmw) = calcPhiW(cm, cw);
 
         theta = calcTheta(rmw, dwi);
-        stride_time = abs(2.0*theta/yaw); // not infinity because yaw is nonzero
+        stride_time = abs(2.0*theta/yaw);
 
         std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
         std::tie(phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP);
@@ -315,9 +321,10 @@ private:
 
         if (!initialized && gait_mode == "Default")
         {
-            stage = (phase < 1.0 - duty_factor) ? "Transfer Phase" : "Support Phase";
-            new_ci = cw;
-            if (verbose)
+            // TODO: Clean this up?
+            stage = (phase > duty_factor || phase == 0.0) ? "Transfer Phase" : "Support Phase";
+            ci = cw;
+            if (verbose >= 1)
             {
                 ROS_INFO("Not initialized. Stage: %s", stage.c_str());
             }
@@ -325,10 +332,29 @@ private:
         else if (!initialized && gait_mode != "Default")
         {
             initialized = true;
-            new_ci = (stage == "Support Phase") ? AEP : PEP;
-            if (verbose)
+            if (stage == "Transfer Phase")
             {
-                ROS_INFO("Initialized. Stage: %s, ci: (%f, %f, %f)", stage.c_str(), new_ci.x, new_ci.y, new_ci.z);
+                ci = PEP;
+            }
+            else
+            {
+                support_phase = (duty_factor - phase)/duty_factor; // TODO: Check
+                if (support_phase <= 0.0)
+                {
+                    support_phase = 0.0;
+                }
+                if (support_phase >= 1.0)
+                {
+                    support_phase = 1.0;
+                }
+                phi_i = phi_AEP + dir*2.0*theta*support_phase;
+                ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
+                ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
+                ci.z = -base_height;
+            }
+            if (verbose >= 1)
+            {
+                ROS_INFO("Initialized. Stage: %s, ci: (%f, %f, %f), sp: %f", stage.c_str(), ci.x, ci.y, ci.z, support_phase);
             }
         }
         else if (stage == "Support Phase" && gait_mode != "Default" && initialized)
@@ -337,14 +363,15 @@ private:
             transfer_phase = 0.0;
             if (support_phase >= 1.0)
             {
+                support_phase = 1.0;
                 stage = "Transfer Phase";
-                new_ci = PEP;
+                ci = PEP;
             }
             else
             {
-                new_ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
-                new_ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
-                new_ci.z = -base_height;
+                ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
+                ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
+                ci.z = -base_height;
             }
         }
         else if (stage == "Transfer Phase" && gait_mode != "Default" && initialized)
@@ -365,9 +392,9 @@ private:
 
             if (phi_plus > 0.0) // lifting
             {
-                new_ci.x = ci.x + (d_AEP + stride_height)*cos(alpha)/k_plus;
-                new_ci.y = ci.y + (d_AEP + stride_height)*sin(alpha)/k_plus;
-                new_ci.z = LPF1(-stride_height, ci.z, 0.1);
+                ci.x = ci.x + (d_AEP + stride_height)*cos(alpha)/k_plus;
+                ci.y = ci.y + (d_AEP + stride_height)*sin(alpha)/k_plus;
+                ci.z = LPF1(-stride_height, ci.z, 0.1);
             }
             else // lowering
             {
@@ -376,22 +403,23 @@ private:
                     abs((ci.z + (base_height - stride_height))/stride_height);
                 if (transfer_phase >= 1.0)
                 {
+                    transfer_phase = 1.0;
                     stage = "Support Phase";
-                    new_ci = AEP;
+                    ci = AEP;
                 }
 
-                new_ci.x = AEP.x;
-                new_ci.y = AEP.y;
-                // new_ci.z += (-stride_height - new_ci.z)/k_plus;
-                new_ci.z = ci.z - stride_height/10.0;
+                ci.x = AEP.x;
+                ci.y = AEP.y;
+                // ci.z += (-stride_height - ci.z)/k_plus;
+                ci.z = ci.z - stride_height/10.0;
                 // TODO: avoid hard-coding this by calculating k_plus using all legs
 
-                if (new_ci.z < -base_height)
+                if (ci.z < -base_height)
                 {
-                    new_ci.z = -base_height;
+                    ci.z = -base_height;
                 }
 
-                if(verbose)
+                if(verbose >= 1)
                 {
                     ROS_INFO("Lowering");
                 }
@@ -399,10 +427,9 @@ private:
         }
         else // Do nothing
         {
-            new_ci = ci;
         }
 
-        if (verbose)
+        if (verbose >= 2)
         {
             if (gait_mode != "Default")
             {
@@ -415,15 +442,17 @@ private:
                 ROS_INFO("transfer time: %f, phi_plus: %f, tG_plus: %f, delta_tG: %f",
                     transfer_time, phi_plus, tG_plus, delta_tG);
                 ROS_INFO("cm: (%f, %f);    ci: (%f, %f, %f)\n",
-                    cm.x, cm.y, new_ci.x, new_ci.y, new_ci.z);
+                    cm.x, cm.y, ci.x, ci.y, ci.z);
             }
             else
             {
-                ROS_INFO("ci: (%f, %f, %f)\n", new_ci.x, new_ci.y, new_ci.z);
+                ROS_INFO("ci: (%f, %f, %f)\n", ci.x, ci.y, ci.z);
             }
         }
 
-        return new_ci;
+        std::tuple<double, double> result(support_phase, transfer_phase);
+        
+        return result; 
     }
 
     geometry_msgs::Point calcCm(
@@ -532,7 +561,7 @@ private:
         dcw = coxa_length + dwi; // radius from hip to workspace center
 
         // Limit dwi to use smaller workspace radius without changing cw workspace center
-        dwi *= 0.7;
+        dwi *= 0.5;
 
         std::tuple<double, double> result(dcw, dwi);
 
