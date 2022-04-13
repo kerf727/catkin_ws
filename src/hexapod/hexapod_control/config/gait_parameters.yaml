@@ -4,21 +4,21 @@
 
 ripple:
   max_speed: 0.02
-  max_yaw: 0.2
-  duty_factor: 0.667
+  max_yaw: 0.1
+  duty_factor: 0.7
   stride_height: 0.02
   phase:
-    L1: 0.000
-    L2: 0.333
-    L3: 0.667
-    R1: 0.667
-    R2: 0.000
-    R3: 0.333
+    L1: 0.333
+    L2: 0.667
+    L3: 0.000
+    R1: 0.000
+    R2: 0.333
+    R3: 0.667
 
 tripod:
   max_speed: 0.02
-  max_yaw: 0.2
-  duty_factor: 0.5
+  max_yaw: 0.1
+  duty_factor: 0.6
   stride_height: 0.02
   phase:
     L1: 0.0
@@ -30,8 +30,8 @@ tripod:
 
 wave:
   max_speed: 0.02
-  max_yaw: 0.2
-  duty_factor: 0.833
+  max_yaw: 0.1
+  duty_factor: 0.86
   stride_height: 0.02
   phase:
     L1: 0.833
