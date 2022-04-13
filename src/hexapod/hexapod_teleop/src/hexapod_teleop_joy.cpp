@@ -24,8 +24,12 @@ public:
         this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/teleop/twist", 1);
         this->buttonPublisher = node.advertise<std_msgs::Bool>("hexapod/teleop/button", 1);
 
-        double publish_rate = 0.02; // 0.1 originally
+        double publish_rate = 0.1; // 10Hz
         timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&TeleopHexapod::publish, this));
+
+        B_state = false;
+        last_B_state = false;
+        dirty = false;
 
         ROS_INFO("Teleop controller ready.\n");
     }
