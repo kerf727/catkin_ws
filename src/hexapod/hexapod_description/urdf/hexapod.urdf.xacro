@@ -8,10 +8,10 @@
     <xacro:property name="coxa_length"          value="0.01"/>
     <xacro:property name="femur_length"         value="0.04"/>
     <xacro:property name="tibia_length"         value="0.08"/>
-    <xacro:property name="base_mass"            value="2.0"/>
-    <xacro:property name="coxa_mass"            value="0.1"/>
-    <xacro:property name="femur_mass"           value="0.4"/>
-    <xacro:property name="tibia_mass"           value="0.8"/>
+    <xacro:property name="base_mass"            value="4.0"/>
+    <xacro:property name="coxa_mass"            value="0.2"/>
+    <xacro:property name="femur_mass"           value="0.8"/>
+    <xacro:property name="tibia_mass"           value="1.6"/>
     <!-- <xacro:property name="foot_mass"    value="0.01"/> -->
     <xacro:property name="inertia"              value="0.1"/>
     <xacro:property name="L1_angle"             value="${2*pi/3}"/>
