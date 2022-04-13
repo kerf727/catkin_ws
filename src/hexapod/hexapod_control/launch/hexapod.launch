@@ -21,14 +21,6 @@
     <node name="leg_R2_pose_action_server" pkg="hexapod_control" type="leg_R2_pose_action_server" respawn="true"/>
     <node name="leg_R3_pose_action_server" pkg="hexapod_control" type="leg_R3_pose_action_server" respawn="true"/>
 
-    <!-- Start up trajectory action servers -->
-    <!-- <node name="leg_L1_trajectory_action_server" pkg="hexapod_control" type="leg_L1_trajectory_action_server" respawn="false" output="screen"/>
-    <node name="leg_L2_trajectory_action_server" pkg="hexapod_control" type="leg_L2_trajectory_action_server" respawn="false"/>
-    <node name="leg_L3_trajectory_action_server" pkg="hexapod_control" type="leg_L3_trajectory_action_server" respawn="false"/>
-    <node name="leg_R1_trajectory_action_server" pkg="hexapod_control" type="leg_R1_trajectory_action_server" respawn="false"/>
-    <node name="leg_R2_trajectory_action_server" pkg="hexapod_control" type="leg_R2_trajectory_action_server" respawn="false"/>
-    <node name="leg_R3_trajectory_action_server" pkg="hexapod_control" type="leg_R3_trajectory_action_server" respawn="false"/> -->
-    
     <!-- Start up parameter files -->
     <rosparam file="$(find hexapod_control)/config/geometry_parameters.yaml" ns="/hexapod/geometry"/>
     <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
