@@ -309,7 +309,7 @@ private:
             new_command = true;
         }
 
-        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_L1, 0);
+        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_L1, 2);
         std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_L2, 0);
         std::tie(ci_L3, p_L3, sp_L3, tp_L3) = updateOneLeg(ci_L3, cw_L3, p_L3, init_L3, 0);
         std::tie(ci_R1, p_R1, sp_R1, tp_R1) = updateOneLeg(ci_R1, cw_R1, p_R1, init_R1, 0);
@@ -357,13 +357,6 @@ private:
         stride_time = abs(2.0*theta/yaw);
         std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
 
-        // Increment current phase
-        current_phase += Tc/stride_time;
-        if (current_phase > 1.0)
-        {
-            current_phase -= 1.0;
-        }
-
         // Not moving and not initialized
         if (!initialized && gait_mode == "Default")
         {
@@ -381,7 +374,7 @@ private:
             {
                 ROS_INFO("Initialized.");
             }
-            // First update ci based on current phase in case coming from neutral cw state
+            
             if (current_phase < duty_factor)
             {
                 std::tie(ci_new, support_phase) = 
@@ -390,7 +383,7 @@ private:
             else
             {
                 std::tie(ci_new, transfer_phase) = 
-                    transfer_phase_routine(current_phase, AEP, PEP, ci_old);
+                    transfer_phase_routine(current_phase, AEP, PEP, ci_old, verbose);
             }
         }
         // Moving and initialized
@@ -399,36 +392,31 @@ private:
             // Support Phase
             if (current_phase < duty_factor)
             {
-                // Update current phase based on current location if command changed
-                if (new_command)
+                // Calculate current phase based on current location
+                double phi_i = calcPhiI(cm, ci_old);
+                double phi_AEP, phi_PEP;
+                std::tie(phi_i, phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP, phi_i);
+
+                support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
+                transfer_phase = 0.0;
+                current_phase = support_phase*duty_factor;
+
+                // Increment current phase
+                current_phase += Tc/stride_time;
+                
+                // Cap at duty_factor
+                if (current_phase >= duty_factor)
                 {
-                    double phi_i = calcPhiI(cm, ci_old);
-                    double phi_AEP, phi_PEP;
-                    std::tie(phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP);
-
-                    // Fix for L2 angle pi -> -pi crossover
-                    if (phi_PEP > M_PI_2 && phi_AEP < -M_PI_2)
-                    {
-                        phi_AEP += 2.0*M_PI;
-                        phi_i += (phi_i < 0.0) ? 2.0*M_PI : 0.0;
-                    }
-                    else if (phi_AEP > M_PI_2 && phi_PEP < -M_PI_2)
-                    {
-                        phi_PEP += 2.0*M_PI;
-                        phi_i += (phi_i < 0.0) ? 2.0*M_PI : 0.0;
-                    }
-
-                    support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
-                    transfer_phase = 0.0;
-                    current_phase = support_phase*duty_factor;
-
-                    if (verbose >= 2)
-                    {
-                        ROS_INFO("phi_i: %.3f, phi_AEP: %.3f, phi_PEP: %.3f", phi_i, phi_AEP, phi_PEP);
-                        ROS_INFO("phase updated to: %.3f, sp: %.3f", current_phase, support_phase);
-                    }
+                    current_phase = duty_factor;
                 }
 
+                if (verbose >= 2)
+                {
+                    ROS_INFO("phi_i: %.3f, phi_AEP: %.3f, phi_PEP: %.3f", phi_i, phi_AEP, phi_PEP);
+                    ROS_INFO("phase updated to: %.3f, sp: %.3f", current_phase, support_phase);
+                }
+
+                // Update location based on updated current phase
                 stage = "Support Phase";
                 std::tie(ci_new, support_phase) = 
                     support_phase_routine(current_phase, phi_w, theta, rmw);
@@ -437,30 +425,46 @@ private:
             // Transfer Phase
             else
             {
-                // Update current phase based on current location if command changed
-                if (new_command)
+                // Calculate current phase based on current location
+                double d_PEP = sqrt(pow(PEP.x - ci_old.x, 2) + pow(PEP.y - ci_old.y, 2));
+                double PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+                double transfer_distance = PEP_to_AEP + stride_height;
+                
+                transfer_phase = d_PEP/transfer_distance;
+                support_phase = 0.0;
+                current_phase = transfer_phase*(1.0 - duty_factor) + duty_factor;
+
+                if (verbose >= 2)
                 {
-                    double alpha = atan2(AEP.y - ci_old.y, AEP.x - ci_old.x);
-                    double d_AEP = sqrt(pow(AEP.x - ci_old.x, 2) + pow(AEP.y - ci_old.y, 2));
-                    double PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
-                    double d_PEP = PEP_to_AEP - d_AEP;
-                    double transfer_distance = PEP_to_AEP + stride_height;
-                    
-                    transfer_phase = d_PEP/transfer_distance;
-                    support_phase = 0.0;
-                    current_phase = transfer_phase*(1.0 - duty_factor) + duty_factor;
+                    ROS_INFO("original phase: %.3f, tp: %.3f", current_phase, transfer_phase);
+                    ROS_INFO("before routine: d_PEP: %.3f, PEP_to_AEP: %.3f", d_PEP, PEP_to_AEP);
+                }
 
-                    if (verbose >= 2)
-                    {
-                        ROS_INFO("d_PEP: %.3f, transfer_distance: %.3f", d_PEP, transfer_distance);
-                        ROS_INFO("phase updated to: %.3f, tp: %.3f", current_phase, transfer_phase);
-                    }
-                };
+                // Increment current phase
+                current_phase += Tc/stride_time;
 
+                // Cap at 1.0
+                if (current_phase >= 1.0)
+                {
+                    current_phase = 1.0;
+                }
+
+                if (verbose >= 2)
+                {
+                    ROS_INFO("phase updated to: %.3f", current_phase);
+                }
+
+                // Update location based on updated current phase
                 stage = "Transfer Phase";
                 std::tie(ci_new, transfer_phase) = 
-                    transfer_phase_routine(current_phase, AEP, PEP, ci_old);
+                    transfer_phase_routine(current_phase, AEP, PEP, ci_old, verbose);
                 support_phase = 0.0;
+
+                // Reset phase if reached 1.0
+                if (current_phase >= 1.0)
+                {
+                    current_phase = 0.0;
+                }
             }
         }
         else // Do nothing
@@ -513,20 +517,27 @@ private:
     std::tuple<geometry_msgs::Point, double> transfer_phase_routine(
         const double& current_phase,
         const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
-        const geometry_msgs::Point& ci_old
+        const geometry_msgs::Point& ci_old, const int& verbose
     )
     {
         geometry_msgs::Point ci_new;
         double transfer_phase = (current_phase - duty_factor)/(1.0 - duty_factor);
+        double lifting_phase, lowering_phase;
 
         // Lifting
         if (transfer_phase < lowering_point)
         {
-            double lifting_phase = transfer_phase/lowering_point;
+            lifting_phase = transfer_phase/lowering_point;
             // if (dir < 0.0)
             // {
             //     lifting_phase = 1.0 - lifting_phase;
             // }
+            // TODO: Is this formula what's wrong? Not moving ci as much as it should
+            // current phase going in corresponds to larger transfer phase, e.g. 0.018,
+            // while after this routine tp is only 0.015
+            // d_PEP should be larger than it is. doesn't match with input current_phase
+            // is lifting phase part of the problem? could consider just replacing with transfer phase
+            // along with that would need to redo the calculation of transfer phase to not use d_PEP and transfer_distance
             ci_new.x = AEP.x*(lifting_phase) + PEP.x*(1.0 - lifting_phase);
             ci_new.y = AEP.y*(lifting_phase) + PEP.y*(1.0 - lifting_phase);
             ci_new.z = LPF1(-stride_height, ci_old.z, 0.1);
@@ -536,12 +547,22 @@ private:
         {
             ci_new.x = AEP.x;
             ci_new.y = AEP.y;
-            double lowering_phase = (transfer_phase - lowering_point)/(1.0 - lowering_point);
+            lowering_phase = (transfer_phase - lowering_point)/(1.0 - lowering_point);
             // if (dir < 0.0)
             // {
             //     lowering_phase = 1.0 - lowering_phase;
             // }
             ci_new.z = -base_height + stride_height*(1.0 - lowering_phase);
+        }
+
+        double d_PEP = sqrt(pow(PEP.x - ci_new.x, 2) + pow(PEP.y - ci_new.y, 2));
+        double PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+        double transfer_distance = PEP_to_AEP + stride_height;
+
+        if (verbose >= 2)
+        {
+            ROS_INFO("after routine: tp: %.3f, d_PEP: %.3f, transfer_distance: %.3f", d_PEP/transfer_distance, d_PEP, transfer_distance);
+            ROS_INFO("lifting phase: %.3f", lifting_phase);
         }
 
         std::tuple<geometry_msgs::Point, double> result(ci_new, transfer_phase);
@@ -630,9 +651,9 @@ private:
         return result;
     }
 
-    std::tuple<double, double> calcPhiAEPPEP(
+    std::tuple<double, double, double> calcPhiAEPPEP(
         const geometry_msgs::Point& cm, const geometry_msgs::Point& AEP,
-        const geometry_msgs::Point& PEP)
+        const geometry_msgs::Point& PEP, const double& phi_i_old)
     {
         geometry_msgs::Point cm_to_AEP, cm_to_PEP;
         cm_to_AEP.x = AEP.x - cm.x;
@@ -640,9 +661,24 @@ private:
         cm_to_PEP.x = PEP.x - cm.x;
         cm_to_PEP.y = PEP.y - cm.y;
         
-        double phi_AEP = atan2(cm_to_AEP.y, cm_to_AEP.x);
-        double phi_PEP = atan2(cm_to_PEP.y, cm_to_PEP.x);
-        std::tuple<double, double> result(phi_AEP, phi_PEP);
+        double phi_i, phi_AEP, phi_PEP;
+        phi_i = phi_i_old;
+        phi_AEP = atan2(cm_to_AEP.y, cm_to_AEP.x);
+        phi_PEP = atan2(cm_to_PEP.y, cm_to_PEP.x);
+
+        // Fix for L2 angle pi -> -pi crossover
+        if (phi_PEP > M_PI_2 && phi_AEP < -M_PI_2)
+        {
+            phi_AEP += 2.0*M_PI;
+            phi_i += (phi_i < 0.0) ? 2.0*M_PI : 0.0;
+        }
+        else if (phi_AEP > M_PI_2 && phi_PEP < -M_PI_2)
+        {
+            phi_PEP += 2.0*M_PI;
+            phi_i += (phi_i < 0.0) ? 2.0*M_PI : 0.0;
+        }
+        
+        std::tuple<double, double, double> result(phi_i, phi_AEP, phi_PEP);
 
         return result;
     }
