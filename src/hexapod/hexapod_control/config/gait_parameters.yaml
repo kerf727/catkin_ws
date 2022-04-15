@@ -2,7 +2,7 @@
 # https://www.google.com/search?q=hexapod+walking+gaits&sxsrf=APq-WBsPbnadUnDv5RB3QpE-cA9ystIY2w:1648166224171&source=lnms&tbm=isch&sa=X&ved=2ahUKEwjX7MnS-d_2AhW2jYkEHRcDAcsQ_AUoAXoECCEQAw&biw=2560&bih=1335&dpr=1#imgrc=l6X3FiYf26ycAM
 # phase is defined as when the transfer phase begins
 
-ripple:
+tetrapod:
   max_speed: 0.02
   max_yaw: 0.1
   duty_factor: 0.7
