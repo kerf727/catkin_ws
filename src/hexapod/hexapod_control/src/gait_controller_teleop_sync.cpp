@@ -86,7 +86,7 @@ public:
         yaw_angle = 0.0;
         lowering_point = 0.9;
         stability_factor = 0.05;
-        verbose = 2;
+        verbose_global = 2;
 
         ROS_INFO("Gait controller ready.");
     }
@@ -140,7 +140,7 @@ private:
     double publish_rate;
     ros::Timer timer;
     boost::mutex publish_mutex;
-    int verbose = 0;
+    int verbose_global = 0;
 
     void buttonCB(const std_msgs::BoolConstPtr& msg)
     {
@@ -273,7 +273,7 @@ private:
             yaw = yaw_eps;
         }
 
-        if (verbose >= 2)
+        if (verbose_global >= 2)
         {
             ROS_INFO("--------------------------------------------------------------------------------");
             ROS_INFO("mode: %s, speed: %f, yaw: %f, yaw_angle: %f\n",
@@ -303,16 +303,13 @@ private:
         double tp_L1, tp_L2, tp_L3, tp_R1, tp_R2, tp_R3; // transfer phase
 
         // TODO: get rid of new command and do this every time regardless of change in command
+        new_command = false;
         if (gait_mode != "Default" && last_gait_mode == "Default")
         {
             new_command = true;
         }
-        else
-        {
-            new_command = false;
-        }
 
-        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_L1, 2);
+        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_L1, 0);
         std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_L2, 0);
         std::tie(ci_L3, p_L3, sp_L3, tp_L3) = updateOneLeg(ci_L3, cw_L3, p_L3, init_L3, 0);
         std::tie(ci_R1, p_R1, sp_R1, tp_R1) = updateOneLeg(ci_R1, cw_R1, p_R1, init_R1, 0);
@@ -320,7 +317,7 @@ private:
         std::tie(ci_R3, p_R3, sp_R3, tp_R3) = updateOneLeg(ci_R3, cw_R3, p_R3, init_R3, 0);
 
         last_gait_mode = gait_mode;
-
+ 
         sendL1PoseGoal(ci_L1);
         sendL2PoseGoal(ci_L2);
         sendL3PoseGoal(ci_L3);
@@ -328,13 +325,13 @@ private:
         sendR2PoseGoal(ci_R2);
         sendR3PoseGoal(ci_R3);
 
-        if (verbose >= 2)
+        if (verbose_global >= 2)
         {
             ROS_INFO("mode: %s, pL1: %.3f, pL2: %.3f, pL3: %.3f, pR1: %.3f, pR2: %.3f, pR3: %.3f",
                 gait_mode.c_str(), p_L1, p_L2, p_L3, p_R1, p_R2, p_R3);
         }
 
-        if (verbose >= 3)
+        if (verbose_global >= 3)
         {
             ROS_INFO("p: %f, sp: %f, tp: %f, L1: (%f, %f, %f)", p_L1, sp_L1, tp_L1, ci_L1.x, ci_L1.y, ci_L1.z);
             ROS_INFO("p: %f, sp: %f, tp: %f, L2: (%f, %f, %f)", p_L2, sp_L2, tp_L2, ci_L2.x, ci_L2.y, ci_L2.z);
@@ -503,7 +500,7 @@ private:
         double support_phase, angle;
 
         support_phase = current_phase/duty_factor;
-        angle = phi_w + dir*(2.0*support_phase - 1.0)*theta; // TODO: don't make this dependent on dir
+        angle = phi_w + dir*(2.0*support_phase - 1.0)*theta;
         ci_new.x = rmw*cos(angle) + cm.x;
         ci_new.y = rmw*sin(angle) + cm.y;
         ci_new.z = -base_height;
@@ -545,11 +542,6 @@ private:
             //     lowering_phase = 1.0 - lowering_phase;
             // }
             ci_new.z = -base_height + stride_height*(1.0 - lowering_phase);
-
-            if(verbose >= 2)
-            {
-                ROS_INFO("Lowering");
-            }
         }
 
         std::tuple<geometry_msgs::Point, double> result(ci_new, transfer_phase);
