@@ -45,24 +45,34 @@ public:
         node.getParam("/hexapod/geometry/leg_R1/hip_angle", hip_angle_R1);
         node.getParam("/hexapod/geometry/leg_R2/hip_angle", hip_angle_R2);
         node.getParam("/hexapod/geometry/leg_R3/hip_angle", hip_angle_R3);
-        hip_angle_L1 = hip_angle_L1*M_PI/180.0; // convert to radians
-        hip_angle_L2 = hip_angle_L2*M_PI/180.0; // convert to radians
-        hip_angle_L3 = hip_angle_L3*M_PI/180.0; // convert to radians
-        hip_angle_R1 = hip_angle_R1*M_PI/180.0; // convert to radians
-        hip_angle_R2 = hip_angle_R2*M_PI/180.0; // convert to radians
-        hip_angle_R3 = hip_angle_R3*M_PI/180.0; // convert to radians
+        
+        // Convert to radians
+        hip_angle_L1 = hip_angle_L1*M_PI/180.0;
+        hip_angle_L2 = hip_angle_L2*M_PI/180.0;
+        hip_angle_L3 = hip_angle_L3*M_PI/180.0;
+        hip_angle_R1 = hip_angle_R1*M_PI/180.0;
+        hip_angle_R2 = hip_angle_R2*M_PI/180.0;
+        hip_angle_R3 = hip_angle_R3*M_PI/180.0;
 
         start = ros::Time::now().toSec();
         publish_rate = 0.02; // 50Hz
         timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&GaitController::updateAllLegs, this));
 
-        std::tie(dcw, dwi) = calcStepRadius(base_height); // TODO: make base_height variable
+        std::tie(dcw, dwi) = calcStepRadius(base_height);
         cw_L1 = calcCw(base_height, base_radius, hip_angle_L1);
         cw_L2 = calcCw(base_height, base_radius, hip_angle_L2);
         cw_L3 = calcCw(base_height, base_radius, hip_angle_L3);
         cw_R1 = calcCw(base_height, base_radius, hip_angle_R1);
         cw_R2 = calcCw(base_height, base_radius, hip_angle_R2);
         cw_R3 = calcCw(base_height, base_radius, hip_angle_R3);
+        
+        // Initialize legs to center of workspace
+        ci_L1 = cw_L1;
+        ci_L2 = cw_L2;
+        ci_L3 = cw_L3;
+        ci_R1 = cw_R1;
+        ci_R2 = cw_R2;
+        ci_R3 = cw_R3;
 
         node.getParam("/hexapod/gait/" + gait_type + "/max_speed", max_speed);
         node.getParam("/hexapod/gait/" + gait_type + "/max_yaw", max_yaw);
@@ -85,7 +95,6 @@ public:
         yaw = yaw_eps;
         yaw_angle = 0.0;
         lowering_point = 0.9;
-        stability_factor = 0.05;
         verbose_global = 2;
 
         ROS_INFO("Gait controller ready.");
@@ -108,37 +117,35 @@ private:
     ros::Subscriber buttonSubscriber;
     ros::ServiceClient linkStateClient;
     hexapod_control::Pose current_pose;
+    double publish_rate;
+    ros::Timer timer;
+    boost::mutex publish_mutex;
     double start, t, elapsed, last_elapsed, Tc;
     double femur_length, tibia_length, coxa_length, base_radius, base_height;
     double hip_angle_L1, hip_angle_L2, hip_angle_L3, hip_angle_R1, hip_angle_R2, hip_angle_R3;
     double init_phase_L1, init_phase_L2, init_phase_L3, init_phase_R1, init_phase_R2, init_phase_R3;
-    double p_L1, p_L2, p_L3, p_R1, p_R2, p_R3;
-    std::string gait_mode = "Default";
-    std::string last_gait_mode = "Default";
-    double speed, yaw, yaw_angle;
-    double max_speed, max_yaw;
-    double rm, dir;
-	double stride_height, duty_factor;
+	double stride_height, duty_factor, lowering_point;
+    double dwi, dcw;
+    geometry_msgs::Point cm;
     geometry_msgs::Point ci_L1, ci_L2, ci_L3, ci_R1, ci_R2, ci_R3;
     geometry_msgs::Point cw_L1, cw_L2, cw_L3, cw_R1, cw_R2, cw_R3;
-    geometry_msgs::Point cm;
-    double lowering_point;
-    double dwi, dcw;
+    double p_L1, p_L2, p_L3, p_R1, p_R2, p_R3;
     bool init_L1 = false;
     bool init_L2 = false;
     bool init_L3 = false;
     bool init_R1 = false;
     bool init_R2 = false;
     bool init_R3 = false;
+    std::string gait_mode = "Default";
+    std::string last_gait_mode = "Default";
+    double speed, yaw, yaw_angle;
+    double yaw_eps = 1e-6;
+    double max_speed, max_yaw;
+    double rm, dir;
     bool B_button = false;
     int gait_counter = 0;
     std::string gait_type = "tetrapod";
-    double stability_factor;
     double eps = 0.05;
-    double yaw_eps = 1e-6;
-    double publish_rate;
-    ros::Timer timer;
-    boost::mutex publish_mutex;
     int verbose_global = 0;
 
     void buttonCB(const std_msgs::BoolConstPtr& msg)
@@ -206,10 +213,6 @@ private:
             angular = 0.0;
         }
 
-        // TODO: Should mapRange() be nonlinear so that small deflections move the robot more?
-
-        dir = 1.0; // default
-
         // Map joystick data to speed, yaw, yaw_angle
         // Strafe (Lx and Ly only)
         if ((linearX != 0.0 || linearY != 0.0) && angular == 0.0)
@@ -218,6 +221,7 @@ private:
             speed = mapRange(abs(linearX) + abs(linearY), 0.0, 1.0, 0.0, max_speed);
             yaw_angle = atan2(linearY, linearX);
             yaw = yaw_eps;
+            dir = 1.0;
         }
         // Rotate (Rx only)
         else if (linearY == 0.0 && angular != 0.0)
@@ -252,7 +256,7 @@ private:
             dir = 1.0;
         }
 
-        // Cap maximum values
+        // Cap max/min values
         if (speed > max_speed)
         {
             speed = max_speed;
@@ -298,24 +302,12 @@ private:
         double sp_L1, sp_L2, sp_L3, sp_R1, sp_R2, sp_R3; // support phase
         double tp_L1, tp_L2, tp_L3, tp_R1, tp_R2, tp_R3; // transfer phase
 
-        if (gait_mode != "Default" && last_gait_mode == "Default")
-        {
-            init_L1 = false;
-            init_L2 = false;
-            init_L3 = false;
-            init_R1 = false;
-            init_R2 = false;
-            init_R3 = false;
-        }
-
         std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_L1, 0);
         std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_L2, 2);
         std::tie(ci_L3, p_L3, sp_L3, tp_L3) = updateOneLeg(ci_L3, cw_L3, p_L3, init_L3, 0);
         std::tie(ci_R1, p_R1, sp_R1, tp_R1) = updateOneLeg(ci_R1, cw_R1, p_R1, init_R1, 0);
         std::tie(ci_R2, p_R2, sp_R2, tp_R2) = updateOneLeg(ci_R2, cw_R2, p_R2, init_R2, 0);
         std::tie(ci_R3, p_R3, sp_R3, tp_R3) = updateOneLeg(ci_R3, cw_R3, p_R3, init_R3, 0);
-
-        last_gait_mode = gait_mode;
  
         sendL1PoseGoal(ci_L1);
         sendL2PoseGoal(ci_L2);
@@ -339,6 +331,8 @@ private:
             ROS_INFO("p: %f, sp: %f, tp: %f, R2: (%f, %f, %f)", p_R2, sp_R2, tp_R2, ci_R2.x, ci_R2.y, ci_R2.z);
             ROS_INFO("p: %f, sp: %f, tp: %f, R3: (%f, %f, %f)", p_R3, sp_R3, tp_R3, ci_R3.x, ci_R3.y, ci_R3.z);
         }
+
+        last_gait_mode = gait_mode;
     }
 
     std::tuple<geometry_msgs::Point, double, double, double> updateOneLeg(
@@ -358,38 +352,54 @@ private:
         std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
 
         // Not moving and not initialized
-        if (!initialized && gait_mode == "Default")
+        if (!initialized && gait_mode == "Default" && last_gait_mode == "Default")
         {
-            ci_new = cw;
+            // TODO: Decide if leg should hold position while uninitialized or go to cw
+            ci_new = cw; // cw or ci_old
+
             if (verbose >= 2)
             {
                 ROS_INFO("Not initialized.");
             }
         }
         // About to move and not initialized
-        else if (!initialized && gait_mode != "Default")
+        else if (!initialized && gait_mode != "Default" && last_gait_mode == "Default")
         {
             initialized = true;
             if (verbose >= 2)
             {
                 ROS_INFO("Initialized.");
             }
-            
+
             if (current_phase < duty_factor)
             {
+                // current_phase = updatePhaseDuringSupport(ci_new, AEP, PEP, theta, diff_phase, verbose);
                 stage = "Support Phase";
                 std::tie(ci_new, support_phase) = 
                     supportPhaseRoutine(current_phase, phi_w, theta, rmw);
+                transfer_phase = 0.0;
             }
             else
             {
+                // current_phase = updatePhaseDuringTransfer(ci_new, AEP, PEP, diff_phase, verbose);
                 stage = "Transfer Phase";
                 std::tie(ci_new, transfer_phase) = 
                     transferPhaseRoutine(current_phase, AEP, PEP, ci_old, verbose);
+                support_phase = 0.0;
+            }
+        }
+        // Stopped moving, need to uninitialize
+        else if (initialized && gait_mode == "Default" && last_gait_mode != "Default")
+        {
+            initialized = false;
+            ci_new = ci_old;
+            if (verbose >= 2)
+            {
+                ROS_INFO("Uninitialized.");
             }
         }
         // Moving and initialized
-        else if (initialized && gait_mode != "Default")
+        else if (initialized && gait_mode != "Default" && last_gait_mode != "Default")
         {
             // Support Phase
             if (current_phase < duty_factor)
