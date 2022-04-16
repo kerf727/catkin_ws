@@ -94,6 +94,7 @@ public:
         speed = 0.0;
         yaw = yaw_eps;
         yaw_angle = 0.0;
+        
         lowering_point = 0.9;
         verbose_global = 2;
 
@@ -236,6 +237,7 @@ private:
         else if (linearY != 0.0 && angular != 0.0)
         {
             // TODO: make this a separate mode controlled by a button? imagine pressing Ly and then suddenly pressing Rx
+            // Currently not working
             gait_mode = "Steer";
             speed = mapRange(abs(linearY), 0.0, 1.0, 0.0, max_speed);
             yaw = mapRange(angular, -1.0, 1.0, -max_yaw, max_yaw);

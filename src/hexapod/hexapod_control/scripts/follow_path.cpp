@@ -70,19 +70,19 @@ private:
     {
         geometry_msgs::Twist twist_msg;
 
-        if (elapsed <= 2.0)
+        if (elapsed <= 5.0)
         {
             twist_msg.linear.x = 0.0;
             twist_msg.linear.y = 0.0;
             twist_msg.angular.x = 1.0;
         }
-        else if (elapsed <= 3.0)
+        else if (elapsed <= 6.0)
         {
             twist_msg.linear.x = 0.0;
             twist_msg.linear.y = 0.0;
             twist_msg.angular.x = 0.0;
         }
-        else if (elapsed <= 5.0)
+        else if (elapsed <= 8.0)
         {
             twist_msg.linear.x = 0.0;
             twist_msg.linear.y = 0.0;
