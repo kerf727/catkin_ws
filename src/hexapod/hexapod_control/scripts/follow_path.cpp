@@ -1,18 +1,18 @@
 #include "ros/ros.h"
-#include <iostream>
+// #include <iostream>
 #include "std_msgs/Bool.h"
 #include "geometry_msgs/Twist.h"
 #include "boost/thread/mutex.hpp"
 #include "boost/thread/thread.hpp"
 
-class WalkNode
+class FollowPath
 {
 public:
-    WalkNode()
+    FollowPath()
     {
         this->node = node;
 
-        ROS_INFO("Publishing Walk Node Data...");
+        ROS_INFO("Publishing Follow Path Node Data...");
         this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/teleop/twist", 1);
         this->buttonPublisher = node.advertise<std_msgs::Bool>("hexapod/teleop/button", 1);
 
@@ -26,12 +26,12 @@ public:
 
         start = ros::Time::now().toSec();
         double publish_rate = 0.1; // 10Hz
-        timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&WalkNode::publishPath, this));
+        timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&FollowPath::publishPath, this));
 
-        ROS_INFO("Teleop controller ready.\n");
+        ROS_INFO("Follow Path Node ready.\n");
     }
 
-    ~WalkNode()
+    ~FollowPath()
     {
         this->node.shutdown();
     }
@@ -47,7 +47,7 @@ private:
     boost::mutex publish_mutex;
     double start, t, elapsed, last_elapsed, Tc;
 
-    void WalkNode::publishPath()
+    void FollowPath::publishPath()
     {
         boost::mutex::scoped_lock lock(publish_mutex);
 
@@ -101,11 +101,11 @@ private:
 
 int main(int argc, char **argv)
 {
-    ROS_INFO("Starting Walk Node...");
-    ros::init(argc, argv, "walk_node");
+    ROS_INFO("Starting Follow Path Node...");
+    ros::init(argc, argv, "follow_path");
     ROS_INFO("Initialized ros...");
 
-    WalkNode walk_node;
+    FollowPath follow_path;
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;
