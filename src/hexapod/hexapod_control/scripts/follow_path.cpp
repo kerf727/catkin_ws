@@ -47,7 +47,7 @@ private:
     boost::mutex publish_mutex;
     double start, t, elapsed, last_elapsed, Tc;
 
-    void FollowPath::publishPath()
+    void publishPath()
     {
         boost::mutex::scoped_lock lock(publish_mutex);
 

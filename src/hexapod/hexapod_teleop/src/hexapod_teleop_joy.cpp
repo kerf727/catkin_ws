@@ -51,7 +51,7 @@ private:
     ros::Timer timer;
     boost::mutex publish_mutex;
 
-    void TeleopHexapod::joystickCB(const sensor_msgs::JoyConstPtr& msg)
+    void joystickCB(const sensor_msgs::JoyConstPtr& msg)
     {
         geometry_msgs::Twist twist_msg;
         twist_msg.linear.x = -msg->axes[Lx];
@@ -67,7 +67,7 @@ private:
         last_B_state = B_state;
     }
 
-    void TeleopHexapod::publish()
+    void publish()
     {
         boost::mutex::scoped_lock lock(publish_mutex);
 
