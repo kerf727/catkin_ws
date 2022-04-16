@@ -1,64 +1,111 @@
+#include "ros/ros.h"
 #include <iostream>
-#include "quadruped_control/MoveAction.h"
-#include "quadruped_control/SetJointAction.h"
-#include "actionlib/client/simple_action_client.h"
+#include "std_msgs/Bool.h"
+#include "geometry_msgs/Twist.h"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/thread.hpp"
 
 class WalkNode
 {
 public:
-    WalkNode(ros::NodeHandle *node) : client("gait_controller", true)
+    WalkNode()
     {
         this->node = node;
 
-        ROS_INFO("Waiting for Move Server...");
-        this->client.waitForServer(ros::Duration(30));
+        ROS_INFO("Publishing Walk Node Data...");
+        this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/teleop/twist", 1);
+        this->buttonPublisher = node.advertise<std_msgs::Bool>("hexapod/teleop/button", 1);
 
-        ROS_INFO("Sending gait goal...");
-        quadruped_control::MoveGoal goal;
-        goal.distance = 1;
-        goal.gaitType = 0;
+        twist_msg.linear.x = 0.0;
+        twist_msg.linear.y = 0.0;
+        twist_msg.linear.z = 0.0;
+        twist_msg.angular.x = 0.0;
+        twist_msg.angular.y = 0.0;
+        twist_msg.angular.z = 0.0;
+        button_msg.data = false;
 
-        this->client.sendGoal(goal,
-            boost::bind(&WalkNode::resultCB, this, _1, _2),
-            boost::bind(&WalkNode::activeCB, this),
-            boost::bind(&WalkNode::feedbackCB, this, _1));
-        
+        start = ros::Time::now().toSec();
+        double publish_rate = 0.1; // 10Hz
+        timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&WalkNode::publishPath, this));
+
+        ROS_INFO("Teleop controller ready.\n");
     }
 
     ~WalkNode()
     {
-        
-    }
-
-    void activeCB()
-    {
-    }
-
-    void feedbackCB(const quadruped_control::MoveFeedback::ConstPtr &feedback)
-    {
-    }
-
-    void resultCB(const actionlib::SimpleClientGoalState &state,
-                  const quadruped_control::MoveResult::ConstPtr &gaitResult)
-    {
+        this->node.shutdown();
     }
 
 private:
 
-    ros::NodeHandle *node;
-    actionlib::SimpleActionClient<quadruped_control::MoveAction> client;
-    quadruped_control::MoveFeedback actionFeedback;
-    quadruped_control::MoveResult actionResult;
+    ros::NodeHandle node;
+    ros::Publisher twistPublisher;
+    ros::Publisher buttonPublisher;
+    geometry_msgs::Twist twist_msg;
+    std_msgs::Bool button_msg;
+    ros::Timer timer;
+    boost::mutex publish_mutex;
+    double start, t, elapsed, last_elapsed, Tc;
+
+    void WalkNode::publishPath()
+    {
+        boost::mutex::scoped_lock lock(publish_mutex);
+
+        elapsed = ros::Time::now().toSec() - start;
+        Tc = elapsed - last_elapsed; // control interval
+        last_elapsed = elapsed;
+
+        twist_msg = pathScript(elapsed);
+        twistPublisher.publish(twist_msg);
+        
+        // B button unused for now
+        // button_msg.data = false;
+        // buttonPublisher.publish(button_msg);
+
+        ROS_INFO("Lx: %f, Ly: %f, Rx: %f, B: %d",
+            twist_msg.linear.x, twist_msg.linear.y, twist_msg.angular.x, button_msg.data);
+    }
+
+    geometry_msgs::Twist pathScript(const double& elapsed)
+    {
+        geometry_msgs::Twist twist_msg;
+
+        if (elapsed <= 2.0)
+        {
+            twist_msg.linear.x = 0.0;
+            twist_msg.linear.y = 0.0;
+            twist_msg.angular.x = 1.0;
+        }
+        else if (elapsed <= 3.0)
+        {
+            twist_msg.linear.x = 0.0;
+            twist_msg.linear.y = 0.0;
+            twist_msg.angular.x = 0.0;
+        }
+        else if (elapsed <= 5.0)
+        {
+            twist_msg.linear.x = 0.0;
+            twist_msg.linear.y = 0.0;
+            twist_msg.angular.x = -1.0;
+        }
+        else
+        {
+            twist_msg.linear.x = 0.0;
+            twist_msg.linear.y = 0.0;
+            twist_msg.angular.x = 0.0;
+        }
+
+        return twist_msg;
+    }
 };
 
 int main(int argc, char **argv)
 {
-    ROS_INFO("Starting walk node...");
+    ROS_INFO("Starting Walk Node...");
     ros::init(argc, argv, "walk_node");
-    ros::NodeHandle node;
     ROS_INFO("Initialized ros...");
 
-    WalkNode walkNode(&node);
+    WalkNode walk_node;
     ROS_INFO("Spinning node...");
     ros::spin();
     return 0;
