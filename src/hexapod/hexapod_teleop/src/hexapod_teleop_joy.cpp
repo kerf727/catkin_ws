@@ -34,9 +34,12 @@ public:
         ROS_INFO("Teleop controller ready.\n");
     }
 
+    ~TeleopHexapod()
+    {
+        this->node.shutdown();
+    }
+
 private:
-    void joystickCB(const sensor_msgs::Joy::ConstPtr& msg);
-    void publish();
     ros::NodeHandle node;
     ros::Subscriber joystickSubscriber;
     ros::Publisher twistPublisher;
@@ -47,45 +50,45 @@ private:
     std_msgs::Bool last_button_msg;
     ros::Timer timer;
     boost::mutex publish_mutex;
+
+    void TeleopHexapod::joystickCB(const sensor_msgs::JoyConstPtr& msg)
+    {
+        geometry_msgs::Twist twist_msg;
+        twist_msg.linear.x = -msg->axes[Lx];
+        twist_msg.linear.y = msg->axes[Ly];
+        twist_msg.angular.x = -msg->axes[Rx];
+        last_twist_msg = twist_msg;
+
+        B_state = msg->buttons[B];
+        if (B_state && !last_B_state)
+        {
+            dirty = true;
+        }
+        last_B_state = B_state;
+    }
+
+    void TeleopHexapod::publish()
+    {
+        boost::mutex::scoped_lock lock(publish_mutex);
+
+        twistPublisher.publish(last_twist_msg);
+        
+        std_msgs::Bool button_msg;
+        if (dirty)
+        {
+            button_msg.data = true;
+            dirty = false;
+        }
+        else
+        {
+            button_msg.data = false;
+        }
+        buttonPublisher.publish(button_msg); // TODO: change to byte for more button data?
+
+        ROS_INFO("Lx: %f, Ly: %f, Rx: %f, B: %d",
+            last_twist_msg.linear.x, last_twist_msg.linear.y, last_twist_msg.angular.x, button_msg.data);
+    }
 };
-
-void TeleopHexapod::joystickCB(const sensor_msgs::JoyConstPtr& msg)
-{
-    geometry_msgs::Twist twist_msg;
-    twist_msg.linear.x = -msg->axes[Lx];
-    twist_msg.linear.y = msg->axes[Ly];
-    twist_msg.angular.x = -msg->axes[Rx];
-    last_twist_msg = twist_msg;
-
-    B_state = msg->buttons[B];
-    if (B_state && !last_B_state)
-    {
-        dirty = true;
-    }
-    last_B_state = B_state;
-}
-
-void TeleopHexapod::publish()
-{
-    boost::mutex::scoped_lock lock(publish_mutex);
-
-    twistPublisher.publish(last_twist_msg);
-    
-    std_msgs::Bool button_msg;
-    if (dirty)
-    {
-        button_msg.data = true;
-        dirty = false;
-    }
-    else
-    {
-        button_msg.data = false;
-    }
-    buttonPublisher.publish(button_msg); // TODO: change to byte for more button data?
-
-    ROS_INFO("Lx: %f, Ly: %f, Rx: %f, B: %d",
-        last_twist_msg.linear.x, last_twist_msg.linear.y, last_twist_msg.angular.x, button_msg.data);
-}
 
 int main(int argc, char** argv)
 {
