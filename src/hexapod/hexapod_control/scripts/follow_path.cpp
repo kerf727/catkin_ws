@@ -76,17 +76,23 @@ private:
             twist_msg.linear.y = 0.0;
             twist_msg.angular.x = 1.0;
         }
-        else if (elapsed <= 6.0)
+        else if (elapsed <= 10.0)
+        {
+            twist_msg.linear.x = 0.0;
+            twist_msg.linear.y = 1.0;
+            twist_msg.angular.x = 0.0;
+        }
+        else if (elapsed <= 11.0)
         {
             twist_msg.linear.x = 0.0;
             twist_msg.linear.y = 0.0;
             twist_msg.angular.x = 0.0;
         }
-        else if (elapsed <= 8.0)
+        else if (elapsed <= 16.0)
         {
-            twist_msg.linear.x = 0.0;
+            twist_msg.linear.x = -1.0;
             twist_msg.linear.y = 0.0;
-            twist_msg.angular.x = -1.0;
+            twist_msg.angular.x = 0.0;
         }
         else
         {

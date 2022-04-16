@@ -91,9 +91,13 @@ public:
         p_R2 = init_phase_R2;
         p_R3 = init_phase_R3;
 
+        gait_mode = "Default";
+        last_gait_mode = gait_mode;
         speed = 0.0;
         yaw = yaw_eps;
         yaw_angle = 0.0;
+        last_yaw = yaw;
+        last_yaw_angle = yaw_angle;
         
         lowering_point = 0.9;
         verbose_global = 2;
@@ -137,9 +141,10 @@ private:
     bool init_R1 = false;
     bool init_R2 = false;
     bool init_R3 = false;
-    std::string gait_mode = "Default";
-    std::string last_gait_mode = "Default";
+    std::string gait_mode, last_gait_mode;
     double speed, yaw, yaw_angle;
+    double last_yaw, last_yaw_angle;
+    bool dirty = false;
     double yaw_eps = 1e-6;
     double max_speed, max_yaw;
     double rm, dir;
@@ -200,7 +205,7 @@ private:
         double angular = msg->angular.x;
 
         // Dead zone
-        double deadzone = 0.0; // no deadzone necessary for SN30pro+
+        double deadzone = 0.0; // placeholder if deadzone is necessary for a controller
         if (abs(linearX) < deadzone)
         {
             linearX = 0.0;
@@ -233,21 +238,20 @@ private:
             yaw_angle = 0.0;
             dir = (yaw > 0.0) ? 1.0 : -1.0;
         }
-        // Steer (Ly and Rx)
-        else if (linearY != 0.0 && angular != 0.0)
-        {
+        // Steer (Ly and Rx) -- Currently not working --
+        // else if (linearY != 0.0 && angular != 0.0)
+        // {
             // TODO: make this a separate mode controlled by a button? imagine pressing Ly and then suddenly pressing Rx
-            // Currently not working
-            gait_mode = "Steer";
-            speed = mapRange(abs(linearY), 0.0, 1.0, 0.0, max_speed);
-            yaw = mapRange(angular, -1.0, 1.0, -max_yaw, max_yaw);
-            yaw_angle = mapRange(abs(angular), 0.0, 1.0, 0.0, M_PI/3.0);
-            if (angular > 0.0)
-            {
-                yaw_angle = M_PI - yaw_angle;
-            }
-            dir = (yaw > 0.0) ? 1.0 : -1.0;
-        }
+            // gait_mode = "Steer";
+            // speed = mapRange(abs(linearY), 0.0, 1.0, 0.0, max_speed);
+            // yaw = mapRange(angular, -1.0, 1.0, -max_yaw, max_yaw);
+            // yaw_angle = mapRange(abs(angular), 0.0, 1.0, 0.0, M_PI/3.0);
+            // if (angular > 0.0)
+            // {
+            //     yaw_angle = M_PI - yaw_angle;
+            // }
+            // dir = (yaw > 0.0) ? 1.0 : -1.0;
+        // }
         // Default
         else
         {
@@ -297,6 +301,12 @@ private:
             Tc = elapsed - last_elapsed; // control interval
         }
         last_elapsed = elapsed;
+
+        dirty = false;
+        if (gait_mode != last_gait_mode || yaw != last_yaw || yaw_angle != last_yaw_angle)
+        {
+            dirty = true;
+        }
         
         rm = speed/yaw; // distance from body center to motion center
         cm = calcCm(yaw_angle, rm, base_height); // motion center
@@ -304,12 +314,12 @@ private:
         double sp_L1, sp_L2, sp_L3, sp_R1, sp_R2, sp_R3; // support phase
         double tp_L1, tp_L2, tp_L3, tp_R1, tp_R2, tp_R3; // transfer phase
 
-        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_L1, 0);
-        std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_L2, 2);
-        std::tie(ci_L3, p_L3, sp_L3, tp_L3) = updateOneLeg(ci_L3, cw_L3, p_L3, init_L3, 0);
-        std::tie(ci_R1, p_R1, sp_R1, tp_R1) = updateOneLeg(ci_R1, cw_R1, p_R1, init_R1, 0);
-        std::tie(ci_R2, p_R2, sp_R2, tp_R2) = updateOneLeg(ci_R2, cw_R2, p_R2, init_R2, 0);
-        std::tie(ci_R3, p_R3, sp_R3, tp_R3) = updateOneLeg(ci_R3, cw_R3, p_R3, init_R3, 0);
+        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_phase_L1, init_L1, 1);
+        std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_phase_L2, init_L2, 0);
+        std::tie(ci_L3, p_L3, sp_L3, tp_L3) = updateOneLeg(ci_L3, cw_L3, p_L3, init_phase_L3, init_L3, 0);
+        std::tie(ci_R1, p_R1, sp_R1, tp_R1) = updateOneLeg(ci_R1, cw_R1, p_R1, init_phase_R1, init_R1, 0);
+        std::tie(ci_R2, p_R2, sp_R2, tp_R2) = updateOneLeg(ci_R2, cw_R2, p_R2, init_phase_R2, init_R2, 0);
+        std::tie(ci_R3, p_R3, sp_R3, tp_R3) = updateOneLeg(ci_R3, cw_R3, p_R3, init_phase_R3, init_R3, 0);
  
         sendL1PoseGoal(ci_L1);
         sendL2PoseGoal(ci_L2);
@@ -317,6 +327,10 @@ private:
         sendR1PoseGoal(ci_R1);
         sendR2PoseGoal(ci_R2);
         sendR3PoseGoal(ci_R3);
+
+        last_gait_mode = gait_mode;
+        last_yaw = yaw;
+        last_yaw_angle = yaw_angle;
 
         if (verbose_global >= 2)
         {
@@ -333,13 +347,11 @@ private:
             ROS_INFO("p: %f, sp: %f, tp: %f, R2: (%f, %f, %f)", p_R2, sp_R2, tp_R2, ci_R2.x, ci_R2.y, ci_R2.z);
             ROS_INFO("p: %f, sp: %f, tp: %f, R3: (%f, %f, %f)", p_R3, sp_R3, tp_R3, ci_R3.x, ci_R3.y, ci_R3.z);
         }
-
-        last_gait_mode = gait_mode;
     }
 
     std::tuple<geometry_msgs::Point, double, double, double> updateOneLeg(
         const geometry_msgs::Point& ci_old, const geometry_msgs::Point& cw,
-        double& current_phase, bool& initialized,
+        double& current_phase, const double& init_phase, bool& initialized,
         const int& verbose)
     {
         geometry_msgs::Point ci_new, AEP, PEP, cm_to_AEP, cm_to_PEP;
@@ -353,89 +365,54 @@ private:
         diff_phase = Tc/stride_time;
         std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
 
-        // Not moving and not initialized
-        if (!initialized && gait_mode == "Default" && last_gait_mode == "Default")
+        // Not moving, not initialized
+        if (!initialized && !dirty)
         {
-            // TODO: Decide if leg should hold position while uninitialized or go to cw
+            if (verbose >= 1)
+            {
+                ROS_INFO("Not moving, not initialized.");
+            }
+            // TODO: Decide if leg should hold position while uninitialized or go to cw. Two spots like this
             ci_new = cw; // cw or ci_old
-
-            if (verbose >= 2)
-            {
-                ROS_INFO("Not initialized.");
-            }
         }
-        // About to move and not initialized
-        else if (!initialized && gait_mode != "Default" && last_gait_mode == "Default")
+        // New command sent
+        else if (dirty)
         {
+            if (verbose >= 1)
+            {
+                ROS_INFO("New comand sent.");
+            }
             initialized = true;
-            if (verbose >= 2)
-            {
-                ROS_INFO("Initialized.");
-            }
+            ci_new = cw; // cw or ci_old
+            current_phase = init_phase;
 
-            if (current_phase < duty_factor)
-            {
-                // current_phase = updatePhaseDuringSupport(ci_new, AEP, PEP, theta, diff_phase, verbose);
-                stage = "Support Phase";
-                std::tie(ci_new, support_phase) = 
-                    supportPhaseRoutine(current_phase, phi_w, theta, rmw);
-                transfer_phase = 0.0;
-            }
-            else
-            {
-                // current_phase = updatePhaseDuringTransfer(ci_new, AEP, PEP, diff_phase, verbose);
-                stage = "Transfer Phase";
-                std::tie(ci_new, transfer_phase) = 
-                    transferPhaseRoutine(current_phase, AEP, PEP, ci_old, verbose);
-                support_phase = 0.0;
-            }
+            std::tie(ci_new, support_phase, transfer_phase, stage) = 
+                movementRoutine(current_phase, phi_w, theta, rmw, AEP, PEP, ci_old);
         }
-        // Stopped moving, need to uninitialize
-        else if (initialized && gait_mode == "Default" && last_gait_mode != "Default")
+        // Moving, already initialized
+        else if (initialized && !dirty)
         {
-            initialized = false;
-            ci_new = ci_old;
-            if (verbose >= 2)
+            if (verbose >= 1)
             {
-                ROS_INFO("Uninitialized.");
+                ROS_INFO("Moving, already initialized.");
             }
-        }
-        // Moving and initialized
-        else if (initialized && gait_mode != "Default" && last_gait_mode != "Default")
-        {
-            // Support Phase
-            if (current_phase < duty_factor)
+
+            current_phase = updatePhase(current_phase, ci_old, AEP, PEP, theta, diff_phase, verbose);
+            std::tie(ci_new, support_phase, transfer_phase, stage) = 
+                movementRoutine(current_phase, phi_w, theta, rmw, AEP, PEP, ci_old);
+
+            // Reset phase if reached 1.0
+            if (current_phase >= 1.0)
             {
-                // Calculate current phase based on current location
-                current_phase = updatePhaseDuringSupport(ci_old, AEP, PEP, theta, diff_phase, verbose);
-
-                // Update location based on updated current phase
-                stage = "Support Phase";
-                std::tie(ci_new, support_phase) = 
-                    supportPhaseRoutine(current_phase, phi_w, theta, rmw);
-                transfer_phase = 0.0;
-            }
-            // Transfer Phase
-            else
-            {
-                // Calculate current phase based on current location
-                current_phase = updatePhaseDuringTransfer(ci_old, AEP, PEP, diff_phase, verbose);
-
-                // Update location based on updated current phase
-                stage = "Transfer Phase";
-                std::tie(ci_new, transfer_phase) = 
-                    transferPhaseRoutine(current_phase, AEP, PEP, ci_old, verbose);
-                support_phase = 0.0;
-
-                // Reset phase if reached 1.0
-                if (current_phase >= 1.0)
-                {
-                    current_phase = 0.0;
-                }
+                current_phase = 0.0;
             }
         }
         else // Do nothing
         {
+            if (verbose >= 1)
+            {
+                ROS_INFO("Do nothing (else case).");
+            }
             ci_new = ci_old;
         }
 
@@ -462,119 +439,115 @@ private:
         return result; 
     }
 
-    double updatePhaseDuringSupport(
+    double updatePhase(
+        const double& current_phase,
         const geometry_msgs::Point& ci_old,
         const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
         const double& theta, const double& diff_phase, const int& verbose)
     {
-        double phi_i, phi_AEP, phi_PEP, support_phase, current_phase;
-        phi_i = calcPhiI(cm, ci_old);
-        std::tie(phi_i, phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP, phi_i);
+        double updated_current_phase;
 
-        support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
-        current_phase = support_phase*duty_factor;
-
-        if (verbose >= 2)
+        // Support Phase
+        if (current_phase < duty_factor)
         {
-            ROS_INFO("recalculated phase: %.3f, next phase: %.3f", current_phase, current_phase + diff_phase);
-            ROS_INFO("before routine: sp: %.3f, phi_i-phi_AEP: %.3f, 2*theta: %.3f", support_phase, phi_i-phi_AEP, 2.0*theta);
+            double phi_i, phi_AEP, phi_PEP, support_phase;
+            phi_i = calcPhiI(cm, ci_old);
+            std::tie(phi_i, phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP, phi_i);
+
+            support_phase = abs(phi_i - phi_AEP)/(2.0 * theta);
+            updated_current_phase = support_phase*duty_factor;
+
+            if (verbose >= 2)
+            {
+                ROS_INFO("recalculated phase: %.3f, next phase: %.3f", updated_current_phase, updated_current_phase + diff_phase);
+                ROS_INFO("before routine: sp: %.3f, phi_i-phi_AEP: %.3f, 2*theta: %.3f", support_phase, phi_i-phi_AEP, 2.0*theta);
+            }
+
+            // Increment current phase
+            updated_current_phase += diff_phase;
+            
+            // Cap at duty_factor
+            if (updated_current_phase >= duty_factor)
+            {
+                updated_current_phase = duty_factor;
+            }
         }
-
-        // Increment current phase
-        current_phase += diff_phase;
-        
-        // Cap at duty_factor
-        if (current_phase >= duty_factor)
-        {
-            current_phase = duty_factor;
-        }
-
-        return current_phase;
-    }
-
-    std::tuple<geometry_msgs::Point, double> supportPhaseRoutine(
-        const double& current_phase, const double& phi_w,
-        const double& theta, const double& rmw
-    )
-    {
-        geometry_msgs::Point ci_new;
-        double support_phase, angle;
-
-        support_phase = current_phase/duty_factor;
-        angle = phi_w + dir*(2.0*support_phase - 1.0)*theta;
-        ci_new.x = rmw*cos(angle) + cm.x;
-        ci_new.y = rmw*sin(angle) + cm.y;
-        ci_new.z = -base_height;
-
-        std::tuple<geometry_msgs::Point, double> result(ci_new, support_phase);
-        
-        return result;
-    }
-
-    double updatePhaseDuringTransfer(
-        const geometry_msgs::Point& ci_old,
-        const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
-        const double& diff_phase, const int& verbose)
-    {
-        double d_PEP, PEP_to_AEP, transfer_phase, current_phase;
-        d_PEP = sqrt(pow(PEP.x - ci_old.x, 2) + pow(PEP.y - ci_old.y, 2));
-        PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
-        
-        transfer_phase = d_PEP/PEP_to_AEP;
-        current_phase = transfer_phase*(1.0 - duty_factor) + duty_factor;
-
-        if (verbose >= 2)
-        {
-            ROS_INFO("recalculated phase: %.3f, next phase: %.3f", current_phase, current_phase + diff_phase);
-            ROS_INFO("before routine: tp: %.3f, d_PEP: %.3f, PEP_to_AEP: %.3f", transfer_phase, d_PEP, PEP_to_AEP);
-        }
-
-        // Increment current phase
-        current_phase += diff_phase;
-
-        // Cap at 1.0
-        if (current_phase >= 1.0)
-        {
-            current_phase = 1.0;
-        }
-
-        return current_phase;
-    }
-
-    std::tuple<geometry_msgs::Point, double> transferPhaseRoutine(
-        const double& current_phase,
-        const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
-        const geometry_msgs::Point& ci_old, const int& verbose
-    )
-    {
-        geometry_msgs::Point ci_new;
-        double transfer_phase = (current_phase - duty_factor)/(1.0 - duty_factor);
-        double lifting_phase, lowering_phase;
-
-        ci_new.x = AEP.x*(transfer_phase) + PEP.x*(1.0 - transfer_phase);
-        ci_new.y = AEP.y*(transfer_phase) + PEP.y*(1.0 - transfer_phase);
-
-        // Lifting
-        if (transfer_phase < lowering_point)
-        {
-            ci_new.z = LPF1(-stride_height, ci_old.z, 0.1);
-        }
-        // Lowering
+        // Transfer Phase
         else
         {
-            lowering_phase = (transfer_phase - lowering_point)/(1.0 - lowering_point);
-            ci_new.z = -base_height + stride_height*(1.0 - lowering_phase);
+            double d_PEP, PEP_to_AEP, transfer_phase;
+            d_PEP = sqrt(pow(PEP.x - ci_old.x, 2) + pow(PEP.y - ci_old.y, 2));
+            PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+            
+            transfer_phase = d_PEP/PEP_to_AEP;
+            updated_current_phase = transfer_phase*(1.0 - duty_factor) + duty_factor;
+
+            if (verbose >= 2)
+            {
+                ROS_INFO("recalculated phase: %.3f, next phase: %.3f", updated_current_phase, updated_current_phase + diff_phase);
+                ROS_INFO("before routine: tp: %.3f, d_PEP: %.3f, PEP_to_AEP: %.3f", transfer_phase, d_PEP, PEP_to_AEP);
+            }
+
+            // Increment current phase
+            updated_current_phase += diff_phase;
+
+            // Cap at 1.0
+            if (updated_current_phase >= 1.0)
+            {
+                updated_current_phase = 1.0;
+            }
         }
 
-        double d_PEP = sqrt(pow(PEP.x - ci_new.x, 2) + pow(PEP.y - ci_new.y, 2));
-        double PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+        return updated_current_phase;
+    }
 
-        // if (verbose >= 2)
-        // {
-        //     ROS_INFO("after routine: tp: %.3f, d_PEP: %.3f, PEP_to_AEP: %.3f", d_PEP/PEP_to_AEP, d_PEP, PEP_to_AEP);
-        // }
+    std::tuple<geometry_msgs::Point, double, double, std::string> movementRoutine(
+        const double& current_phase, const double& phi_w,
+        const double& theta, const double& rmw,
+        const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
+        const geometry_msgs::Point& ci_old)
+    {
+        geometry_msgs::Point ci_new;
+        double support_phase, transfer_phase;
+        std::string stage;
 
-        std::tuple<geometry_msgs::Point, double> result(ci_new, transfer_phase);
+        // Support Phase
+        if (current_phase < duty_factor)
+        {
+            stage = "Support Phase";
+            support_phase = current_phase/duty_factor;
+            transfer_phase = 0.0;
+
+            double angle = phi_w + dir*(2.0*support_phase - 1.0)*theta;
+            ci_new.x = rmw*cos(angle) + cm.x;
+            ci_new.y = rmw*sin(angle) + cm.y;
+            ci_new.z = -base_height;
+        }
+        // Transfer Phase
+        else
+        {
+            stage = "Transfer Phase";
+            support_phase = 0.0;
+            transfer_phase = (current_phase - duty_factor)/(1.0 - duty_factor);
+
+            ci_new.x = AEP.x*(transfer_phase) + PEP.x*(1.0 - transfer_phase);
+            ci_new.y = AEP.y*(transfer_phase) + PEP.y*(1.0 - transfer_phase);
+
+            // Lifting
+            if (transfer_phase < lowering_point)
+            {
+                ci_new.z = LPF1(-stride_height, ci_old.z, 0.1);
+            }
+            // Lowering
+            else
+            {
+                double lowering_phase = (transfer_phase - lowering_point)/(1.0 - lowering_point);
+                ci_new.z = -base_height + stride_height*(1.0 - lowering_phase);
+            }
+        }
+
+        std::tuple<geometry_msgs::Point, double, double, std::string> result(
+            ci_new, support_phase, transfer_phase, stage);
         
         return result;
     }
@@ -599,6 +572,7 @@ private:
         const double& hip_angle)
     {
         double foot_radius = base_radius + dcw;
+
         geometry_msgs::Point cw;
         cw.x = foot_radius*cos(hip_angle);
         cw.y = foot_radius*sin(hip_angle);
