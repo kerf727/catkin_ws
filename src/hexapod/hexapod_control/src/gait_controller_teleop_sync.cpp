@@ -144,7 +144,7 @@ private:
     std::string gait_mode, last_gait_mode;
     double speed, yaw, yaw_angle;
     double last_yaw, last_yaw_angle;
-    bool dirty = false;
+    bool new_command_flag = false;
     double yaw_eps = 1e-6;
     double max_speed, max_yaw;
     double rm, dir;
@@ -302,10 +302,11 @@ private:
         }
         last_elapsed = elapsed;
 
-        dirty = false;
+        // Detect if a new command has been sent
+        new_command_flag = false;
         if (gait_mode != last_gait_mode || yaw != last_yaw || yaw_angle != last_yaw_angle)
         {
-            dirty = true;
+            new_command_flag = true;
         }
         
         rm = speed/yaw; // distance from body center to motion center
@@ -314,7 +315,7 @@ private:
         double sp_L1, sp_L2, sp_L3, sp_R1, sp_R2, sp_R3; // support phase
         double tp_L1, tp_L2, tp_L3, tp_R1, tp_R2, tp_R3; // transfer phase
 
-        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_phase_L1, init_L1, 1);
+        std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_phase_L1, init_L1, 0);
         std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_phase_L2, init_L2, 0);
         std::tie(ci_L3, p_L3, sp_L3, tp_L3) = updateOneLeg(ci_L3, cw_L3, p_L3, init_phase_L3, init_L3, 0);
         std::tie(ci_R1, p_R1, sp_R1, tp_R1) = updateOneLeg(ci_R1, cw_R1, p_R1, init_phase_R1, init_R1, 0);
@@ -365,36 +366,35 @@ private:
         diff_phase = Tc/stride_time;
         std::tie(AEP, PEP) = calcAEPPEP(rmw, phi_w, dir, theta, base_height);
 
-        // Not moving, not initialized
-        if (!initialized && !dirty)
+        // Not moving
+        if (gait_mode == "Default")
         {
             if (verbose >= 1)
             {
-                ROS_INFO("Not moving, not initialized.");
+                ROS_INFO("Not moving.");
             }
             // TODO: Decide if leg should hold position while uninitialized or go to cw. Two spots like this
             ci_new = cw; // cw or ci_old
         }
         // New command sent
-        else if (dirty)
+        else if (new_command_flag)
         {
             if (verbose >= 1)
             {
                 ROS_INFO("New comand sent.");
             }
-            initialized = true;
             ci_new = cw; // cw or ci_old
-            current_phase = init_phase;
+            // current_phase = init_phase;
 
             std::tie(ci_new, support_phase, transfer_phase, stage) = 
                 movementRoutine(current_phase, phi_w, theta, rmw, AEP, PEP, ci_old);
         }
-        // Moving, already initialized
-        else if (initialized && !dirty)
+        // Moving, same command as before
+        else if (!new_command_flag)
         {
             if (verbose >= 1)
             {
-                ROS_INFO("Moving, already initialized.");
+                ROS_INFO("Moving, same command as before.");
             }
 
             current_phase = updatePhase(current_phase, ci_old, AEP, PEP, theta, diff_phase, verbose);
@@ -407,7 +407,8 @@ private:
                 current_phase = 0.0;
             }
         }
-        else // Do nothing
+        // Do nothing
+        else
         {
             if (verbose >= 1)
             {
