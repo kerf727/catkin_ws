@@ -79,31 +79,40 @@ private:
 
     void publishPath()
     {
-        // pathCommand(0.0, 0.0, 0.0, 0.0); // Dummy start command
-        // pathCommand(0.0, 1.0, 0.0, 3.0);
-        // pathCommand(0.0, -1.0, 0.0, 3.0);
-        // pathCommand(0.0, 0.0, 1.0, 3.0);
-
-        // pathWaypoint(-0.2, 0.3, -0.3, target_speed, target_yaw);
-
         // Generate map of nodes to traverse
         Graph graph = generateGraph();
+        ROS_INFO("Generated Graph.");
         
         // Set start and goal points from nodes in map
         GraphPoint start, goal;
-        start.x = init_pos.x;
-        start.y = init_pos.y;
-        goal.x = 0.2; // TODO: make sure this is a node in the graph
-        goal.y = 0.3;
+        start.x = 0.0; // TODO: make sure these are both nodes in the graph
+        start.y = 0.0;
+        goal.x = -0.2;
+        goal.y = -0.1;
+        ROS_INFO("Set start and goal nodes.");
         
         // Solve map using A star algorithm
-        std::set<GraphPoint> path = solveAStar(graph, start, goal);
-        
+        std::vector<GraphPoint> path = solveAStar(graph, start, goal);
+        if (path.empty())
+        {
+            ROS_INFO("Failed to find a path.");
+            return;
+        }
+        ROS_INFO("Solved path using A*.");
+        int node_counter = 1;
+        for (GraphPoint node : path)
+        {
+            ROS_INFO("Path node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
+            node_counter++;
+        }
+
         // Traverse waypoints of solved path
         for (GraphPoint node : path)
         {
+            ROS_INFO("\nNavigating to waypoint (%.3f, %.3f)", node.x, node.y);
             pathWaypoint(node.x, node.y, 0.0, target_speed, target_yaw);
         }
+        ROS_INFO("Reached goal node.");
     }
 
     void pathWaypoint(
@@ -146,7 +155,7 @@ private:
             error_y = target_pos_y - curr_pos.y;
             position_error = sqrt(pow(error_x, 2) +
                                   pow(error_y, 2));
-            max_error = (abs(error_x) > abs(error_y)) ? error_x : error_y;
+            max_error = (abs(error_x) > abs(error_y)) ? abs(error_x) : abs(error_y);
             twist_msg.linear.x = speed_ratio*error_x/max_error;
             twist_msg.linear.y = speed_ratio*error_y/max_error;
             twist_msg.angular.x = 0.0;
@@ -280,25 +289,6 @@ private:
         }
     };
     
-    Graph generateGraph()
-    {
-        Graph graph;
-        GraphPoint A{0.0, 0.0};
-        GraphPoint B{0.0, 1.0};
-        GraphPoint C{-2.0, -1.0};
-        GraphPoint D{2.0, 3.0};
-        GraphPoint E{1.0, -2.0};
-
-        // Add points and their neighbors
-        graph.points[A] = {B, E};
-        graph.points[B] = {D};
-        graph.points[C] = {A, E};
-        graph.points[D] = {A, E};
-        graph.points[E] = {C, D};
-
-        return graph;
-    }
-
     template<typename T, typename priority_t>
     struct PriorityQueue
     {
@@ -322,9 +312,45 @@ private:
             elements.pop();
             return best_item;
         }
+
+        auto clear()
+        {
+            while (!elements.empty())
+            {
+                elements.pop();
+            }
+            return elements;
+        }
     };
 
-    std::set<GraphPoint> solveAStar(
+    Graph generateGraph()
+    {
+        Graph graph;
+        GraphPoint A{0.0, 0.0};
+        GraphPoint B{0.0, 0.1};
+        GraphPoint C{-0.2, -0.1};
+        GraphPoint D{0.2, 0.3};
+        GraphPoint E{0.1, -0.2};
+
+        // Add points and their neighbors
+        graph.points[A] = {B, E};
+        graph.points[B] = {D};
+        graph.points[C] = {A, E};
+        graph.points[D] = {A, E};
+        graph.points[E] = {C, D};
+
+        // for (auto node : graph.points)
+        // {
+        //     for (GraphPoint nbr : graph.points[node.first])
+        //     {
+        //         ROS_INFO("(%.3f, %.3f) neighbor: (%.3f, %.3f)", node.first.x, node.first.y, nbr.x, nbr.y);
+        //     }
+        // }
+
+        return graph;
+    }
+
+    std::vector<GraphPoint> solveAStar(
         Graph& graph,
         const GraphPoint& start,
         const GraphPoint& goal)
@@ -332,8 +358,16 @@ private:
         PriorityQueue<GraphPoint, double> open_set;
         std::map<GraphPoint, GraphPoint> came_from;
         std::map<GraphPoint, double> cost_so_far; // TODO: make default value infinity?
-        std::set<GraphPoint> path; // TODO: make sure these are all empty to start?
+        std::vector<GraphPoint> path;
+         
+        // Make sure these are empty to start
+        open_set.clear();
+        came_from.clear();
+        cost_so_far.clear();
+        path.clear();
         
+        ROS_INFO("start: (%.3f, %.3f). goal: (%.3f, %.3f)", start.x, start.y, goal.x, goal.y);
+
         open_set.put(start, 0.0);
         came_from[start] = start;
         cost_so_far[start] = 0.0;
@@ -341,11 +375,12 @@ private:
         while (!open_set.empty())
         {
             GraphPoint current = open_set.get();
+            // ROS_INFO("current: (%.3f, %.3f)", current.x, current.y);
             if (current == goal)
             {
                 while (current != start)
                 {
-                    path.insert(current);
+                    path.insert(path.begin(), current);
                     current = came_from[current];
                 }
                 return path;
@@ -365,6 +400,7 @@ private:
             }
         }
 
+        ROS_INFO("Failed. No path found.");
         return path; // failure
     }
 
