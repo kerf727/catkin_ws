@@ -84,11 +84,9 @@ private:
         ROS_INFO("Generated Graph.");
         
         // Set start and goal points from nodes in map
-        GraphPoint start, goal;
-        start.x = 0.0; // TODO: make sure these are both nodes in the graph
-        start.y = 0.0;
-        goal.x = -0.2;
-        goal.y = -0.1;
+        // TODO: make sure these are both nodes in the graph
+        GraphPoint start{0.0, 0.0};
+        GraphPoint goal{-0.3, -0.3};
         ROS_INFO("Set start and goal nodes.");
         
         // Solve map using A star algorithm
@@ -331,13 +329,23 @@ private:
         GraphPoint C{-0.2, -0.1};
         GraphPoint D{0.2, 0.3};
         GraphPoint E{0.1, -0.2};
+        GraphPoint F{0.3, -0.1};
+        GraphPoint G{-0.3, 0.2};
+        GraphPoint H{-0.1, 0.3};
+        GraphPoint I{-0.3, -0.3};
+        GraphPoint J{0.3, 0.2};
 
         // Add points and their neighbors
         graph.points[A] = {B, E};
         graph.points[B] = {D};
-        graph.points[C] = {A, E};
-        graph.points[D] = {A, E};
-        graph.points[E] = {C, D};
+        graph.points[C] = {A, E, G, H};
+        graph.points[D] = {A, E, J};
+        graph.points[E] = {C, D, F};
+        graph.points[F] = {J};
+        graph.points[G] = {I};
+        graph.points[H] = {B, G};
+        graph.points[I] = {C};
+        graph.points[J] = {F};
 
         // for (auto node : graph.points)
         // {
