@@ -1,49 +1,67 @@
 <?xml version="1.0" ?>
 <sdf version="1.4">
-    <world name="default">
-        <model name="ground">
-            <static>true</static>
-            <link name="link">
-                <collision name="collision">
-                    <geometry>
-                        <plane>
-                            <normal>0 0 1</normal>
-                            <size>100 100</size>
-                        </plane>
-                    </geometry>
-                    <surface>
-                        <friction>
-                            <ode>
-                                <mu>1</mu>
-                                <mu2>1</mu2>
-                            </ode>
-                        </friction>
-                    </surface>
-                </collision>
-                <visual name="visual">
-                    <cast_shadows>false</cast_shadows>
-                    <geometry>
-                        <plane>
-                            <normal>0 0 1</normal>
-                            <size>100 100</size>
-                        </plane>
-                    </geometry>
-                    <material>
-                        <script>
-                            <uri>file://media/materials/scripts/gazebo.material</uri>
-                            <name>Gazebo/Grey</name>
-                        </script>
-                    </material>
-                </visual>
-            </link>
-        </model>
-        <gui>
-            <camera name="user_camera">
-                <pose>-0.1 -0.7 0.5 0 0.6 1.4</pose>
-            </camera>
-        </gui>
-        <include>
-            <uri>model://sun</uri>
-        </include>
-    </world>
+  <world name="default">
+    <model name="ground">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1</mu>
+                <mu2>1</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <cast_shadows>false</cast_shadows>
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+              <name>Gazebo/Grey</name>
+            </script>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <gui>
+      <camera name="user_camera">
+        <pose>-0.1 -0.7 0.5 0 0.6 1.4</pose>
+      </camera>
+    </gui>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- <include>
+      <pose>-1.344 1.344 0.025 0 0 1.5707963267</pose>
+      <uri>model://mouse</uri>
+    </include> -->
+
+    <gui>
+      <plugin name="sample" filename="libregenerate_widget.so"/>
+    </gui>
+
+    <plugin name="maze" filename="libmaze_plugin.so"/>
+
+    <physics type="ode">
+      <!--go as fast as possible!-->
+      <real_time_update_rate>0.0</real_time_update_rate>
+    </physics>
+  </world>
 </sdf>

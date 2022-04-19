@@ -5,7 +5,7 @@
   <!-- Load controllers -->
   <node name="controller_spawn" pkg="controller_manager" type="spawner" respawn="false"
     output="screen" ns="/hexapod"
-    args=  "joint_state_controller 
+    args=  "joint_state_controller
             leg_L1/hip_joint_position_controller
             leg_L1/knee_joint_position_controller
             leg_L1/ankle_joint_position_controller
