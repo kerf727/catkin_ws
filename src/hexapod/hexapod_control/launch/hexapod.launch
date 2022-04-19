@@ -1,37 +1,40 @@
 <launch>
-    <!-- Launch gazebo file which will start up gazebo and load controllers -->
-    <include file="$(find hexapod_gazebo)/launch/gazebo.launch"/>
+  <!-- Launch gazebo file which will start up gazebo -->
+  <include file="$(find hexapod_gazebo)/launch/gazebo.launch"/>
 
-    <!-- Start up kinematic solver -->
-    <node name="kinematics_solver" pkg="hexapod_control" type="kinematics_solver" respawn="false"/>
+  <!-- Load controllers -->
+  <include file="$(find hexapod_config)/launch/hexapod_control.launch"/>
 
-    <!-- Start up joint action servers -->
-    <node name="leg_L1_joint_action_server" pkg="hexapod_control" type="leg_L1_joint_action_server" respawn="false"/>
-    <node name="leg_L2_joint_action_server" pkg="hexapod_control" type="leg_L2_joint_action_server" respawn="false"/>
-    <node name="leg_L3_joint_action_server" pkg="hexapod_control" type="leg_L3_joint_action_server" respawn="false"/>
-    <node name="leg_R1_joint_action_server" pkg="hexapod_control" type="leg_R1_joint_action_server" respawn="false"/>
-    <node name="leg_R2_joint_action_server" pkg="hexapod_control" type="leg_R2_joint_action_server" respawn="false"/>
-    <node name="leg_R3_joint_action_server" pkg="hexapod_control" type="leg_R3_joint_action_server" respawn="false"/>
+  <!-- Start up kinematic solver -->
+  <node name="kinematics_solver" pkg="hexapod_control" type="kinematics_solver" respawn="false"/>
 
-    <!-- Start up pose action servers -->
-    <node name="leg_L1_pose_action_server" pkg="hexapod_control" type="leg_L1_pose_action_server" respawn="true"/>
-    <node name="leg_L2_pose_action_server" pkg="hexapod_control" type="leg_L2_pose_action_server" respawn="true"/>
-    <node name="leg_L3_pose_action_server" pkg="hexapod_control" type="leg_L3_pose_action_server" respawn="true"/>
-    <node name="leg_R1_pose_action_server" pkg="hexapod_control" type="leg_R1_pose_action_server" respawn="true"/>
-    <node name="leg_R2_pose_action_server" pkg="hexapod_control" type="leg_R2_pose_action_server" respawn="true"/>
-    <node name="leg_R3_pose_action_server" pkg="hexapod_control" type="leg_R3_pose_action_server" respawn="true"/>
+  <!-- Start up joint action servers -->
+  <node name="leg_L1_joint_action_server" pkg="hexapod_control" type="leg_L1_joint_action_server" respawn="false"/>
+  <node name="leg_L2_joint_action_server" pkg="hexapod_control" type="leg_L2_joint_action_server" respawn="false"/>
+  <node name="leg_L3_joint_action_server" pkg="hexapod_control" type="leg_L3_joint_action_server" respawn="false"/>
+  <node name="leg_R1_joint_action_server" pkg="hexapod_control" type="leg_R1_joint_action_server" respawn="false"/>
+  <node name="leg_R2_joint_action_server" pkg="hexapod_control" type="leg_R2_joint_action_server" respawn="false"/>
+  <node name="leg_R3_joint_action_server" pkg="hexapod_control" type="leg_R3_joint_action_server" respawn="false"/>
 
-    <!-- Start up parameter files -->
-    <rosparam file="$(find hexapod_control)/config/geometry_parameters.yaml" ns="/hexapod/geometry"/>
-    <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
-    
-    <!-- Start up gait controller -->
-    <node name="gait_controller_teleop_sync" pkg="hexapod_control" type="gait_controller_teleop_sync" respawn="false" output="screen"/>
+  <!-- Start up pose action servers -->
+  <node name="leg_L1_pose_action_server" pkg="hexapod_control" type="leg_L1_pose_action_server" respawn="true"/>
+  <node name="leg_L2_pose_action_server" pkg="hexapod_control" type="leg_L2_pose_action_server" respawn="true"/>
+  <node name="leg_L3_pose_action_server" pkg="hexapod_control" type="leg_L3_pose_action_server" respawn="true"/>
+  <node name="leg_R1_pose_action_server" pkg="hexapod_control" type="leg_R1_pose_action_server" respawn="true"/>
+  <node name="leg_R2_pose_action_server" pkg="hexapod_control" type="leg_R2_pose_action_server" respawn="true"/>
+  <node name="leg_R3_pose_action_server" pkg="hexapod_control" type="leg_R3_pose_action_server" respawn="true"/>
 
-    <!-- Start up force sensor and stability stuff -->
-    <!-- <node name="force_sensor_node" pkg="hexapod_control" type="force_sensor_node" respawn="true"/>
-    <node name="stability_margin_node" pkg="hexapod_control" type="stability_margin_node" respawn="true"/> -->
+  <!-- Start up parameter files -->
+  <rosparam file="$(find hexapod_control)/config/geometry_parameters.yaml" ns="/hexapod/geometry"/>
+  <rosparam file="$(find hexapod_control)/config/gait_parameters.yaml" ns="/hexapod/gait"/>
 
-    <!-- Set to output DEBUG messages -->
-    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find hexapod_config)/custom_rosconsole.conf"/>
+  <!-- Start up gait controller -->
+  <node name="gait_controller_teleop_sync" pkg="hexapod_control" type="gait_controller_teleop_sync" respawn="false" output="screen"/>
+
+  <!-- Start up force sensor and stability stuff -->
+  <!-- <node name="force_sensor_node" pkg="hexapod_control" type="force_sensor_node" respawn="true"/>
+  <node name="stability_margin_node" pkg="hexapod_control" type="stability_margin_node" respawn="true"/> -->
+
+  <!-- Set to output DEBUG messages -->
+  <env name="ROSCONSOLE_CONFIG_FILE" value="$(find hexapod_config)/custom_rosconsole.conf"/>
 </launch>
