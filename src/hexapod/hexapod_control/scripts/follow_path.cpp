@@ -7,6 +7,8 @@
 #include "gazebo_msgs/GetLinkState.h"
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
+#include <fstream>
 
 class FollowPath
 {
@@ -14,7 +16,7 @@ public:
     FollowPath()
     {
         this->node = node;
-        using Graph = std::unordered_map<GraphPoint, std::vector<GraphPoint>>;
+        using Graph = std::unordered_map<GraphNode, std::vector<GraphNode>>;
 
         ROS_INFO("Publishing Follow Path Node Data...");
         this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/teleop/twist", 1);
@@ -76,6 +78,8 @@ private:
     double position_error, heading_error;
     double position_eps = 1e-2;
     double heading_eps = 1e-2;
+    int MAZE_SIZE = 16;
+    double UNIT = 1.0;
 
     void publishPath()
     {
@@ -83,34 +87,34 @@ private:
         Graph graph = generateGraph();
         ROS_INFO("Generated Graph.");
         
-        // Set start and goal points from nodes in map
+        // Set start and goal nodes from nodes in map
         // TODO: make sure these are both nodes in the graph
-        GraphPoint start{0.0, 0.0};
-        GraphPoint goal{-0.3, -0.3};
-        ROS_INFO("Set start and goal nodes.");
+        // GraphNode start{0.0, 0.0};
+        // GraphNode goal{-2.5, 2.5};
+        // ROS_INFO("Set start and goal nodes.");
         
-        // Solve map using A star algorithm
-        std::vector<GraphPoint> path = solveAStar(graph, start, goal);
-        if (path.empty())
-        {
-            ROS_INFO("Failed to find a path.");
-            return;
-        }
-        ROS_INFO("Solved path using A*.");
-        int node_counter = 1;
-        for (GraphPoint node : path)
-        {
-            ROS_INFO("Path node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
-            node_counter++;
-        }
+        // // Solve map using A star algorithm
+        // std::vector<GraphNode> path = solveAStar(graph, start, goal);
+        // if (path.empty())
+        // {
+        //     ROS_INFO("Failed to find a path.");
+        //     return;
+        // }
+        // ROS_INFO("Solved path using A*.");
+        // int node_counter = 1;
+        // for (GraphNode node : path)
+        // {
+        //     ROS_INFO("Path node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
+        //     node_counter++;
+        // }
 
-        // Traverse waypoints of solved path
-        for (GraphPoint node : path)
-        {
-            ROS_INFO("\nNavigating to waypoint (%.3f, %.3f)", node.x, node.y);
-            pathWaypoint(node.x, node.y, 0.0, target_speed, target_yaw);
-        }
-        ROS_INFO("Reached goal node.");
+        // // Traverse waypoints of solved path
+        // for (GraphNode node : path)
+        // {
+        //     ROS_INFO("\nNavigating to waypoint (%.3f, %.3f)", node.x, node.y);
+        //     pathWaypoint(node.x, node.y, 0.0, target_speed, target_yaw);
+        // }
+        // ROS_INFO("Reached goal node.");
     }
 
     void pathWaypoint(
@@ -149,6 +153,7 @@ private:
         {
             // Figure out what path command needs to be sent to get to waypoint
             curr_pos = getPosition();
+            curr_heading = getOrientation();
             error_x = target_pos_x - curr_pos.x;
             error_y = target_pos_y - curr_pos.y;
             position_error = sqrt(pow(error_x, 2) +
@@ -172,6 +177,7 @@ private:
         while (heading_error > heading_eps)
         {
             // Figure out what path command needs to be sent to get to waypoint
+            curr_pos = getPosition();
             curr_heading = getOrientation();
             heading_error = abs(target_heading - curr_heading);
             twist_msg.linear.x = 0.0;
@@ -246,44 +252,89 @@ private:
         return -linkStateMsg.response.link_state.pose.orientation.z;
     }
 
-    struct GraphPoint
+    struct GraphNode
     {
         double x, y;
 
-        bool operator==(const GraphPoint& other) const
+        bool operator==(const GraphNode& other) const
         {
             return (x == other.x && y == other.y);
         }
 
-        bool operator!=(const GraphPoint& other) const
+        bool operator!=(const GraphNode& other) const
         {
             return (x != other.x || y != other.y);
         }
 
-        bool operator<(const GraphPoint& other) const
+        bool operator<(const GraphNode& other) const
         {
             return std::tie(x, y) < std::tie(other.x, other.y);
         }
     };
-
-    struct GraphPointHasher
+    
+    struct GraphNodeHasher
     {
-        std::size_t operator()(const GraphPoint& g) const
+        std::size_t operator()(const GraphNode& id) const
         {
             // Compute individual hash values for node.x and node.y
             // and combine them using XOR and bit shifting:
-            return ((std::hash<double>()(g.x)
-                    ^ (std::hash<double>()(g.y) << 1)) >> 1);
+            return ((std::hash<double>()(id.x) ^
+                    (std::hash<double>()(id.y) << 1)) >> 1);
         }
     };
-    
+
     struct Graph
     {
-        std::unordered_map<GraphPoint, std::vector<GraphPoint>, GraphPointHasher> points;
+        int MAZE_SIZE;
+        double UNIT;
 
-        bool operator==(const Graph& other) const
+        Graph(int MAZE_SIZE_, double UNIT_)
+            : MAZE_SIZE(MAZE_SIZE_), UNIT(UNIT_) {}
+
+        std::unordered_set<GraphNode, GraphNodeHasher> nodes;
+        std::unordered_set<GraphNode, GraphNodeHasher> walls;
+        
+        std::array<GraphNode, 4> DIRS = {
+            /* East, West, North, South */
+            GraphNode{1.0, 0.0}, GraphNode{-1.0, 0.0},
+            GraphNode{0.0, -1.0}, GraphNode{0.0, 1.0}
+        };
+
+        bool inBounds(const GraphNode& id) const
         {
-            return (points == other.points);
+            // TODO: debug this
+            double bound = (double) MAZE_SIZE;
+            bound *= UNIT/2.0;
+            return (-bound <= id.x && id.x < bound) &&
+                   (-bound <= id.y && id.y < bound);
+        }
+
+        bool passable(const GraphNode& id1, const GraphNode& id2) const
+        {
+            // TODO: debug this
+            GraphNode wall_id{(id1.x + id2.x)/2.0, (id1.y + id2.y)/2.0};
+            return walls.find(wall_id) == walls.end();
+        }
+
+        std::vector<GraphNode> neighbors(const GraphNode& id) const
+        {
+            std::vector<GraphNode> results;
+
+            for (GraphNode dir : DIRS)
+            {
+                GraphNode next{id.x + dir.x, id.y + dir.y};
+                if (inBounds(next) && passable(id, next))
+                {
+                    results.push_back(next);
+                }
+            }
+
+            if (fmod(id.x + id.y, 2) == 0)
+            {
+                std::reverse(results.begin(), results.end());
+            }
+
+            return results;
         }
     };
     
@@ -323,50 +374,92 @@ private:
 
     Graph generateGraph()
     {
-        Graph graph;
-        GraphPoint A{0.0, 0.0};
-        GraphPoint B{0.0, 0.1};
-        GraphPoint C{-0.2, -0.1};
-        GraphPoint D{0.2, 0.3};
-        GraphPoint E{0.1, -0.2};
-        GraphPoint F{0.3, -0.1};
-        GraphPoint G{-0.3, 0.2};
-        GraphPoint H{-0.1, 0.3};
-        GraphPoint I{-0.3, -0.3};
-        GraphPoint J{0.3, 0.2};
+        Graph graph(MAZE_SIZE, UNIT);
+        std::fstream fs;
+        std::string maze_filename = "~/catkin_ws/src/hexapod/hexapod_gazebo/mazes/sample_maze.mz";
+        fs.open(maze_filename, std::fstream::in);
 
-        // Add points and their neighbors
-        graph.points[A] = {B, E};
-        graph.points[B] = {D};
-        graph.points[C] = {A, E, G, H};
-        graph.points[D] = {A, E, J};
-        graph.points[E] = {C, D, F};
-        graph.points[F] = {J};
-        graph.points[G] = {I};
-        graph.points[H] = {B, G};
-        graph.points[I] = {C};
-        graph.points[J] = {F};
+        if (fs.good())
+        {
+            std::string line;
+            for (int i = 0; i < MAZE_SIZE; i++)
+            { //read in each line
+                std::getline(fs, line);
+                if (!fs)
+                {
+                    ROS_INFO("getline failed");
+                    return graph;
+                }
 
-        // for (auto node : graph.points)
-        // {
-        //     for (GraphPoint nbr : graph.points[node.first])
-        //     {
-        //         ROS_INFO("(%.3f, %.3f) neighbor: (%.3f, %.3f)", node.first.x, node.first.y, nbr.x, nbr.y);
-        //     }
-        // }
+                int charPos = 0;
+                for (int j = 0; j < MAZE_SIZE; j++)
+                {
+                    if (line.at(charPos) == '|' || line.at(charPos) == '_')
+                    {
+                        // TODO: debug this
+                        double x, y;
+                        x = (double) i;
+                        y = (double) j;
+                        x -= 8.0;
+                        graph.walls.insert(GraphNode{x, y});
+                    }
+                    else if (line.at(charPos) == ' ')
+                    {
+                        // TODO: debug this
+                        double x, y;
+                        x = (double) i;
+                        y = (double) j;
+                        x -= 8.0;
+                        x += 0.5;
+                        y += 0.5;
+                        graph.nodes.insert(GraphNode{x, y});
+                    }
+                    charPos++;
+                }
+            }
+        }
+
+        int node_counter = 0;
+        for (GraphNode node : graph.nodes)
+        {
+            ROS_INFO("Node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
+            node_counter++;
+        }
+
+        int wall_counter = 0;
+        for (GraphNode wall : graph.walls)
+        {
+            ROS_INFO("Wall %d: (%.3f, %.3f)", wall_counter, wall.x, wall.y);
+            wall_counter++;
+        }
+
+        // GraphNode A{0.0, 0.0};
+        // GraphNode B{0.0, 0.5};
+        // GraphNode C{-1.0, 0.5};
+        // GraphNode D{-1.5, 0.5};
+        // GraphNode E{-1.5, 1.5};
+        // GraphNode F{-1.5, 2.5};
+        // GraphNode G{-2.5, 2.5};
+        // graph.nodes.insert(A);
+        // graph.nodes.insert(B);
+        // graph.nodes.insert(C);
+        // graph.nodes.insert(D);
+        // graph.nodes.insert(E);
+        // graph.nodes.insert(F);
+        // graph.nodes.insert(G);
 
         return graph;
     }
 
-    std::vector<GraphPoint> solveAStar(
+    std::vector<GraphNode> solveAStar(
         Graph& graph,
-        const GraphPoint& start,
-        const GraphPoint& goal)
+        const GraphNode& start,
+        const GraphNode& goal)
     {
-        PriorityQueue<GraphPoint, double> open_set;
-        std::map<GraphPoint, GraphPoint> came_from;
-        std::map<GraphPoint, double> cost_so_far; // TODO: make default value infinity?
-        std::vector<GraphPoint> path;
+        PriorityQueue<GraphNode, double> open_set;
+        std::map<GraphNode, GraphNode> came_from;
+        std::map<GraphNode, double> cost_so_far; // TODO: make default value infinity?
+        std::vector<GraphNode> path;
          
         // Make sure these are empty to start
         open_set.clear();
@@ -382,7 +475,7 @@ private:
 
         while (!open_set.empty())
         {
-            GraphPoint current = open_set.get();
+            GraphNode current = open_set.get();
             // ROS_INFO("current: (%.3f, %.3f)", current.x, current.y);
             if (current == goal)
             {
@@ -394,8 +487,8 @@ private:
                 return path;
             }
 
-            std::vector<GraphPoint> neighbors = graph.points[current];
-            for (GraphPoint nbr : neighbors)
+            std::vector<GraphNode> neighbors = graph.neighbors(current);
+            for (GraphNode nbr : neighbors)
             {
                 double new_cost = cost_so_far[current] + getCost(current, nbr);
                 if (cost_so_far.find(nbr) == cost_so_far.end() || new_cost < cost_so_far[nbr])
@@ -413,15 +506,15 @@ private:
     }
 
     inline double heuristic(
-        const GraphPoint& a,
-        const GraphPoint& b)
+        const GraphNode& a,
+        const GraphNode& b)
     {
         return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
     }
 
     inline double getCost(
-        const GraphPoint& a,
-        const GraphPoint& b)
+        const GraphNode& a,
+        const GraphNode& b)
     {
         return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
     }
