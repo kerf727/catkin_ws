@@ -357,6 +357,7 @@ sdf::ElementPtr MazePlugin::LoadModel()
 
     sdf::initFile("root.sdf", modelSDF);
     sdf::readFile("maze_base/model.sdf", modelSDF);
+    // sdf::readFile("/home/kerf/catkin_ws/src/hexapod/hexapod_gazebo/maze_base/model.sdf", modelSDF);
 
     return modelSDF->Root()->GetElement("model");
 }
