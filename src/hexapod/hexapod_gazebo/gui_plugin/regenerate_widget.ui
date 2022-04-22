@@ -24,7 +24,7 @@
    <item>
     <widget class="QLineEdit" name="filename_edit">
      <property name="text">
-      <string>~/catkin_ws/src/hexapod/hexapod_gazebo/mazes/sample_maze.mz</string>
+      <string>~/catkin_ws/src/hexapod/hexapod_gazebo/mazes/small_maze.mz</string>
      </property>
     </widget>
    </item>
