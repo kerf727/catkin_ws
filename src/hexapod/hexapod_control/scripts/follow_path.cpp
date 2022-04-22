@@ -78,7 +78,7 @@ private:
     double position_error, heading_error;
     double position_eps = 1e-2;
     double heading_eps = 1e-2;
-    int MAZE_SIZE = 16;
+    int MAZE_SIZE = 4;
     double UNIT = 1.0;
 
     void publishPath()
@@ -89,32 +89,32 @@ private:
         
         // Set start and goal nodes from nodes in map
         // TODO: make sure these are both nodes in the graph
-        // GraphNode start{0.0, 0.0};
-        // GraphNode goal{-2.5, 2.5};
-        // ROS_INFO("Set start and goal nodes.");
+        GraphNode start{0.5, 0.5};
+        GraphNode goal{-1.5, 0.5};
+        ROS_INFO("Set start and goal nodes.");
         
-        // // Solve map using A star algorithm
-        // std::vector<GraphNode> path = solveAStar(graph, start, goal);
-        // if (path.empty())
-        // {
-        //     ROS_INFO("Failed to find a path.");
-        //     return;
-        // }
-        // ROS_INFO("Solved path using A*.");
-        // int node_counter = 1;
-        // for (GraphNode node : path)
-        // {
-        //     ROS_INFO("Path node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
-        //     node_counter++;
-        // }
+        // Solve map using A star algorithm
+        std::vector<GraphNode> path = solveAStar(graph, start, goal);
+        if (path.empty())
+        {
+            ROS_INFO("Failed to find a path.");
+            return;
+        }
+        ROS_INFO("Solved path using A*.");
+        int node_counter = 1;
+        for (GraphNode node : path)
+        {
+            ROS_INFO("Path node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
+            node_counter++;
+        }
 
-        // // Traverse waypoints of solved path
-        // for (GraphNode node : path)
-        // {
-        //     ROS_INFO("\nNavigating to waypoint (%.3f, %.3f)", node.x, node.y);
-        //     pathWaypoint(node.x, node.y, 0.0, target_speed, target_yaw);
-        // }
-        // ROS_INFO("Reached goal node.");
+        // Traverse waypoints of solved path
+        for (GraphNode node : path)
+        {
+            ROS_INFO("\nNavigating to waypoint (%.3f, %.3f)", node.x, node.y);
+            pathWaypoint(node.x, node.y, 0.0, target_speed, target_yaw);
+        }
+        ROS_INFO("Reached goal node.");
     }
 
     void pathWaypoint(
@@ -296,22 +296,19 @@ private:
         
         std::array<GraphNode, 4> DIRS = {
             /* East, West, North, South */
-            GraphNode{1.0, 0.0}, GraphNode{-1.0, 0.0},
-            GraphNode{0.0, -1.0}, GraphNode{0.0, 1.0}
+            GraphNode{UNIT, 0.0}, GraphNode{-UNIT, 0.0},
+            GraphNode{0.0, -UNIT}, GraphNode{0.0, UNIT}
         };
 
         bool inBounds(const GraphNode& id) const
         {
-            // TODO: debug this
-            double bound = (double) MAZE_SIZE;
-            bound *= UNIT/2.0;
+            double bound = (double)MAZE_SIZE/2.0*UNIT;
             return (-bound <= id.x && id.x < bound) &&
                    (-bound <= id.y && id.y < bound);
         }
 
         bool passable(const GraphNode& id1, const GraphNode& id2) const
         {
-            // TODO: debug this
             GraphNode wall_id{(id1.x + id2.x)/2.0, (id1.y + id2.y)/2.0};
             return walls.find(wall_id) == walls.end();
         }
@@ -376,13 +373,16 @@ private:
     {
         Graph graph(MAZE_SIZE, UNIT);
         std::fstream fs;
-        std::string maze_filename = "~/catkin_ws/src/hexapod/hexapod_gazebo/mazes/sample_maze.mz";
-        fs.open(maze_filename, std::fstream::in);
+        std::string maze_folder = "/home/kerf/catkin_ws/src/hexapod/hexapod_gazebo/mazes/";
+        std::string maze_filename = "small_maze.mz";
+        fs.open(maze_folder + maze_filename, std::fstream::in);
+        double MAZE_SIZE_2 = (double) MAZE_SIZE/2.0;
 
         if (fs.good())
         {
             std::string line;
-            for (int i = 0; i < MAZE_SIZE; i++)
+            double x, y;
+            for (int j = 0; j < MAZE_SIZE; j++)
             { //read in each line
                 std::getline(fs, line);
                 if (!fs)
@@ -392,33 +392,49 @@ private:
                 }
 
                 int charPos = 0;
-                for (int j = 0; j < MAZE_SIZE; j++)
+                for (int i = 0; i < MAZE_SIZE; i++)
                 {
-                    if (line.at(charPos) == '|' || line.at(charPos) == '_')
+                    // Vertical walls
+                    if (line.at(charPos) == '|')
                     {
-                        // TODO: debug this
-                        double x, y;
-                        x = (double) i;
-                        y = (double) j;
-                        x -= 8.0;
+                        x = ((double)i - MAZE_SIZE_2)*UNIT;
+                        y = (-1.0*(double)j + MAZE_SIZE_2 - 0.5)*UNIT;
                         graph.walls.insert(GraphNode{x, y});
                     }
-                    else if (line.at(charPos) == ' ')
+                    charPos++;
+
+                    // Horizontal walls
+                    if (line.at(charPos) == '_')
                     {
-                        // TODO: debug this
-                        double x, y;
-                        x = (double) i;
-                        y = (double) j;
-                        x -= 8.0;
-                        x += 0.5;
-                        y += 0.5;
-                        graph.nodes.insert(GraphNode{x, y});
+                        x = ((double)i - MAZE_SIZE_2 + 0.5)*UNIT;
+                        y = (-1.0*(double)j + MAZE_SIZE_2 - 1.0)*UNIT;
+                        graph.walls.insert(GraphNode{x, y});
                     }
                     charPos++;
+
+                    // Nodes
+                    x = ((double)i - MAZE_SIZE_2 + 0.5)*UNIT;
+                    y = (-1.0*(double)j + MAZE_SIZE_2 - 0.5)*UNIT;
+                    graph.nodes.insert(GraphNode{x, y});
                 }
+            }
+
+            // Add walls to North and East
+            for (int i = 0; i < MAZE_SIZE; i++)
+            {
+                // East walls
+                x = MAZE_SIZE_2*UNIT;
+                y = ((double)i - MAZE_SIZE_2)*UNIT;
+                graph.walls.insert(GraphNode{x, y});
+
+                // North walls
+                x = ((double)i - MAZE_SIZE_2)*UNIT;
+                y = MAZE_SIZE_2*UNIT;
+                graph.walls.insert(GraphNode{x, y});
             }
         }
 
+        ROS_INFO("Printing nodes:");
         int node_counter = 0;
         for (GraphNode node : graph.nodes)
         {
@@ -426,27 +442,13 @@ private:
             node_counter++;
         }
 
+        ROS_INFO("Printing walls:");
         int wall_counter = 0;
         for (GraphNode wall : graph.walls)
         {
             ROS_INFO("Wall %d: (%.3f, %.3f)", wall_counter, wall.x, wall.y);
             wall_counter++;
         }
-
-        // GraphNode A{0.0, 0.0};
-        // GraphNode B{0.0, 0.5};
-        // GraphNode C{-1.0, 0.5};
-        // GraphNode D{-1.5, 0.5};
-        // GraphNode E{-1.5, 1.5};
-        // GraphNode F{-1.5, 2.5};
-        // GraphNode G{-2.5, 2.5};
-        // graph.nodes.insert(A);
-        // graph.nodes.insert(B);
-        // graph.nodes.insert(C);
-        // graph.nodes.insert(D);
-        // graph.nodes.insert(E);
-        // graph.nodes.insert(F);
-        // graph.nodes.insert(G);
 
         return graph;
     }
@@ -484,6 +486,7 @@ private:
                     path.insert(path.begin(), current);
                     current = came_from[current];
                 }
+                // path.insert(path.begin(), start); // TODO: option to include start node
                 return path;
             }
 
