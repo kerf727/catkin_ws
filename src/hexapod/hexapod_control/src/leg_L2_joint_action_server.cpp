@@ -123,7 +123,7 @@ public:
         double hipError = this->hipTarget - current_state.position[0];
         double kneeError = this->kneeTarget - current_state.position[1];
         double ankleError = this->ankleTarget - current_state.position[2];
-        return sqrt(pow(hipError, 2) + pow(kneeError, 2) + pow(ankleError, 2));
+        return sqrt(pow(hipError, 2.0) + pow(kneeError, 2.0) + pow(ankleError, 2.0));
     }
 
     bool isRobotIdle()
@@ -132,7 +132,7 @@ public:
         double magnitude = 0;
         for (int i = 0; i < velocity.size(); ++i)
         {
-            magnitude += pow(velocity[i], 2);
+            magnitude += pow(velocity[i], 2.0);
         }
         double jointError = calculateJointError();
         return magnitude < 0.05 && jointError < eps;

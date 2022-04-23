@@ -477,8 +477,8 @@ private:
         else
         {
             double d_PEP, PEP_to_AEP, transfer_phase;
-            d_PEP = sqrt(pow(PEP.x - ci_old.x, 2) + pow(PEP.y - ci_old.y, 2));
-            PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
+            d_PEP = sqrt(pow(PEP.x - ci_old.x, 2.0) + pow(PEP.y - ci_old.y, 2.0));
+            PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2.0) + pow(AEP.y - PEP.y, 2.0));
             
             transfer_phase = d_PEP/PEP_to_AEP;
             updated_current_phase = transfer_phase*(1.0 - duty_factor) + duty_factor;
@@ -600,7 +600,7 @@ private:
         cm_to_cw.x = cw.x - cm.x;
         cm_to_cw.y = cw.y - cm.y;
         double phi_w = atan2(cm_to_cw.y, cm_to_cw.x);
-        double rmw = sqrt(pow(cm_to_cw.x, 2) + pow(cm_to_cw.y, 2));
+        double rmw = sqrt(pow(cm_to_cw.x, 2.0) + pow(cm_to_cw.y, 2.0));
         std::tuple<double, double> result(phi_w, rmw);
         
         return result;
@@ -610,8 +610,8 @@ private:
     {
         // theta: angle from rotation center to edge of foot WS wrt cm
         // https://mathworld.wolfram.com/Circle-CircleIntersection.html
-        double x = (pow(rmw, 2) - pow(dwi, 2) + pow(rmw, 2))/(2.0*rmw);
-        double y = sqrt(pow(rmw, 2) - pow(x, 2));
+        double x = (pow(rmw, 2.0) - pow(dwi, 2.0) + pow(rmw, 2.0))/(2.0*rmw);
+        double y = sqrt(pow(rmw, 2.0) - pow(x, 2.0));
         
         return asin(y/rmw); // y = rmw*sin(theta)
     }
