@@ -16,7 +16,6 @@ public:
     FollowPath()
     {
         this->node = node;
-        using Graph = std::unordered_map<GraphNode, std::vector<GraphNode>>;
 
         ROS_INFO("Publishing Follow Path Node Data...");
         this->twistPublisher = node.advertise<geometry_msgs::Twist>("hexapod/teleop/twist", 1);
@@ -33,7 +32,7 @@ public:
         position_error = 0.0;
         heading_error = 0.0;
 
-        target_speed = 0.04;
+        target_speed = 0.06;
         target_yaw = 0.15;
 
         twist_msg.linear.x = 0.0;
@@ -79,7 +78,8 @@ private:
     double position_eps = 1e-2;
     double heading_eps = 1e-2;
     int MAZE_SIZE = 4;
-    double UNIT = 1.0;
+    double UNIT = 0.7;
+    bool found = false;
 
     void publishPath()
     {
@@ -89,8 +89,8 @@ private:
         
         // Set start and goal nodes from nodes in map
         // TODO: make sure these are both nodes in the graph
-        GraphNode start{0.5, 0.5};
-        GraphNode goal{-1.5, 0.5};
+        GraphNode start{0.35, 0.35};
+        GraphNode goal{-1.05, 0.35};
         ROS_INFO("Set start and goal nodes.");
         
         // Solve map using A star algorithm
@@ -111,7 +111,7 @@ private:
         // Traverse waypoints of solved path
         for (GraphNode node : path)
         {
-            ROS_INFO("\nNavigating to waypoint (%.3f, %.3f)", node.x, node.y);
+            ROS_INFO("Navigating to waypoint (%.3f, %.3f)", node.x, node.y);
             pathWaypoint(node.x, node.y, 0.0, target_speed, target_yaw);
         }
         ROS_INFO("Reached goal node.");
@@ -258,12 +258,26 @@ private:
 
         bool operator==(const GraphNode& other) const
         {
-            return (x == other.x && y == other.y);
+            double epsilon = 1e-10; // double has ~17 digits of precision
+            bool x_same = false;
+            bool y_same = false;
+
+            x_same = fabs(x - other.x) <= ((fabs(x) < fabs(other.x) ? fabs(other.x) : fabs(x)) * epsilon);
+            y_same = fabs(y - other.y) <= ((fabs(y) < fabs(other.y) ? fabs(other.y) : fabs(y)) * epsilon);
+
+            return x_same && y_same; // equal if both are same
         }
 
         bool operator!=(const GraphNode& other) const
         {
-            return (x != other.x || y != other.y);
+            double epsilon = 1e-10; // double has ~17 digits of precision
+            bool x_same = false;
+            bool y_same = false;
+
+            x_same = fabs(x - other.x) <= ((fabs(x) < fabs(other.x) ? fabs(other.x) : fabs(x)) * epsilon);
+            y_same = fabs(y - other.y) <= ((fabs(y) < fabs(other.y) ? fabs(other.y) : fabs(y)) * epsilon);
+
+            return !x_same || !y_same; // not equal if either are not same
         }
 
         bool operator<(const GraphNode& other) const
@@ -291,8 +305,8 @@ private:
         Graph(int MAZE_SIZE_, double UNIT_)
             : MAZE_SIZE(MAZE_SIZE_), UNIT(UNIT_) {}
 
-        std::unordered_set<GraphNode, GraphNodeHasher> nodes;
-        std::unordered_set<GraphNode, GraphNodeHasher> walls;
+        std::set<GraphNode> nodes;
+        std::set<GraphNode> walls;
         
         std::array<GraphNode, 4> DIRS = {
             /* East, West, North, South */
@@ -307,10 +321,31 @@ private:
                    (-bound <= id.y && id.y < bound);
         }
 
+        bool existsInSet(
+            const std::set<GraphNode>& set, const GraphNode& id) const
+        {
+            // Implemented as a way to avoid .find() lookups failing
+            // due to double type values in GraphNode not matching precisely.
+            // Makes use of overridden GraphNode == operator
+
+            bool id_exists = false;
+            for (auto it : set)
+            {
+                if (it == id) // id exists in set
+                {
+                    id_exists = true;
+                }
+            }
+
+            return id_exists;
+        }
+
         bool passable(const GraphNode& id1, const GraphNode& id2) const
         {
             GraphNode wall_id{(id1.x + id2.x)/2.0, (id1.y + id2.y)/2.0};
-            return walls.find(wall_id) == walls.end();
+            bool id_is_wall = existsInSet(walls, wall_id);
+            return !id_is_wall; // passable if no wall between id1 and id2
+            // return walls.find(wall_id) == walls.end();
         }
 
         std::vector<GraphNode> neighbors(const GraphNode& id) const
@@ -424,33 +459,84 @@ private:
             {
                 // East walls
                 x = MAZE_SIZE_2*UNIT;
-                y = ((double)i - MAZE_SIZE_2)*UNIT;
+                y = (-1.0*(double)i + MAZE_SIZE_2 - 0.5)*UNIT;
                 graph.walls.insert(GraphNode{x, y});
 
                 // North walls
-                x = ((double)i - MAZE_SIZE_2)*UNIT;
+                x = (-1.0*(double)i + MAZE_SIZE_2 - 0.5)*UNIT;
                 y = MAZE_SIZE_2*UNIT;
                 graph.walls.insert(GraphNode{x, y});
             }
         }
 
-        ROS_INFO("Printing nodes:");
-        int node_counter = 0;
-        for (GraphNode node : graph.nodes)
-        {
-            ROS_INFO("Node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
-            node_counter++;
-        }
+        // ROS_INFO("Printing nodes:");
+        // int node_counter = 0;
+        // for (GraphNode node : graph.nodes)
+        // {
+        //     ROS_INFO("Node %d: (%.3f, %.3f)", node_counter, node.x, node.y);
+        //     node_counter++;
+        // }
 
-        ROS_INFO("Printing walls:");
-        int wall_counter = 0;
-        for (GraphNode wall : graph.walls)
-        {
-            ROS_INFO("Wall %d: (%.3f, %.3f)", wall_counter, wall.x, wall.y);
-            wall_counter++;
-        }
+        // ROS_INFO("Printing walls:");
+        // int wall_counter = 0;
+        // for (GraphNode wall : graph.walls)
+        // {
+        //     ROS_INFO("Wall %d: (%.3f, %.3f)", wall_counter, wall.x, wall.y);
+        //     wall_counter++;
+        // }
 
         return graph;
+    }
+
+    template<typename Mapkey, typename Mapvalue>
+    void addToMap(
+        std::map<Mapkey, Mapvalue>& map,
+        const Mapkey& key, const Mapvalue& value)
+    {
+        // Implemented as a way to avoid map[key] = value failing to overwrite
+        // old values for the "same" key due to double type values in GraphNode
+        // not matching precisely. Makes use of overridden GraphNode == operator
+        
+        bool key_exists = false;
+        for (auto it = map.cbegin(); it != map.cend(); ++it)
+        {
+            if (it->first == key) // key already exists in map
+            {
+                map.erase(it); // remove old key and value
+                map[key] = value; // add new key and value
+                key_exists = true;
+                break;
+            }
+        }
+
+        if (!key_exists)
+        {
+            map[key] = value; // add new key and value to map
+        }
+    }
+
+    template<typename Mapkey, typename Mapvalue>
+    std::tuple<Mapvalue, bool> findInMap(
+        const std::map<Mapkey, Mapvalue>& map, const Mapkey& key)
+    {
+        // Implemented as a way to avoid .find() or map[key] lookups failing
+        // due to double type values in GraphNode not matching precisely.
+        // Makes use of overridden GraphNode == operator
+
+        bool key_exists = false;
+        Mapvalue value;
+        for (auto it = map.cbegin(); it != map.cend(); ++it)
+        {
+            if (it->first == key) // key exists in map
+            {
+                value = it->second;
+                key_exists = true;
+            }
+        }
+
+        std::tuple<Mapvalue, bool> result(value, key_exists);
+
+        return result;
     }
 
     std::vector<GraphNode> solveAStar(
@@ -460,7 +546,7 @@ private:
     {
         PriorityQueue<GraphNode, double> open_set;
         std::map<GraphNode, GraphNode> came_from;
-        std::map<GraphNode, double> cost_so_far; // TODO: make default value infinity?
+        std::map<GraphNode, double> cost_so_far;
         std::vector<GraphNode> path;
          
         // Make sure these are empty to start
@@ -469,57 +555,67 @@ private:
         cost_so_far.clear();
         path.clear();
         
-        ROS_INFO("start: (%.3f, %.3f). goal: (%.3f, %.3f)", start.x, start.y, goal.x, goal.y);
+        ROS_INFO("start: (%.7f, %.7f). goal: (%.18f, %.18f)", start.x, start.y, goal.x, goal.y);
 
         open_set.put(start, 0.0);
-        came_from[start] = start;
-        cost_so_far[start] = 0.0;
+        addToMap(came_from, start, start);
+        addToMap(cost_so_far, start, 0.0);
 
         while (!open_set.empty())
         {
             GraphNode current = open_set.get();
-            // ROS_INFO("current: (%.3f, %.3f)", current.x, current.y);
+            // ROS_INFO("current: (%.18f, %.18f), ==goal: %d", current.x, current.y, current == goal);
             if (current == goal)
             {
+                // for (auto it = came_from.cbegin(); it != came_from.cend(); ++it)
+                // {
+                //     ROS_INFO("key: (%.3f, %.3f), value: (%.3f, %.3f)",
+                //         it->first.x, it->first.y, it->second.x, it->second.y);
+                // }
                 while (current != start)
                 {
                     path.insert(path.begin(), current);
-                    current = came_from[current];
+                    GraphNode next;
+                    std::tie(next, found) = findInMap(came_from, current);
+                    current = next;
                 }
-                // path.insert(path.begin(), start); // TODO: option to include start node
+                // path.insert(path.begin(), start); // optional
                 return path;
             }
 
             std::vector<GraphNode> neighbors = graph.neighbors(current);
             for (GraphNode nbr : neighbors)
             {
-                double new_cost = cost_so_far[current] + getCost(current, nbr);
-                if (cost_so_far.find(nbr) == cost_so_far.end() || new_cost < cost_so_far[nbr])
+                double current_cost, nbr_cost;
+                std::tie(current_cost, found) = findInMap(cost_so_far, current);
+                double new_cost = current_cost + getCost(current, nbr);
+                std::tie(nbr_cost, found) = findInMap(cost_so_far, nbr);
+                if (!found || new_cost < nbr_cost)
                 {
-                    cost_so_far[nbr] = new_cost;
+                    addToMap(cost_so_far, nbr, new_cost);
                     double priority = new_cost + heuristic(nbr, goal);
                     open_set.put(nbr, priority);
-                    came_from[nbr] = current;
+                    addToMap(came_from, nbr, current);
+                    // ROS_INFO("current: (%.3f, %.3f). nbr: (%.3f, %.3f)", current.x, current.y, nbr.x, nbr.y);
                 }
             }
         }
 
-        ROS_INFO("Failed. No path found.");
-        return path; // failure
+        return path; // failed to find a path
     }
 
     inline double heuristic(
         const GraphNode& a,
         const GraphNode& b)
     {
-        return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
+        return sqrt(pow(a.x - b.x, 2.0) + pow(a.y - b.y, 2.0));
     }
 
     inline double getCost(
         const GraphNode& a,
         const GraphNode& b)
     {
-        return sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2));
+        return sqrt(pow(a.x - b.x, 2.0) + pow(a.y - b.y, 2.0));
     }
 };
 
