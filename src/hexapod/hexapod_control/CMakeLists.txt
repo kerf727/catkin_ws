@@ -17,13 +17,17 @@ find_package(catkin REQUIRED COMPONENTS
   control_msgs
   gazebo_msgs
   geometry_msgs
+  std_msgs
   kdl_parser
   message_generation
   roscpp
   rospy
-  std_msgs
   tf2
   tf2_ros
+  sensor_msgs
+  cv_bridge
+  image_transport
+  # opencv2 # not needed for python, only C++
 )
 
 ## System dependencies are found with CMake's conventions
@@ -127,15 +131,22 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
+find_package(catkin REQUIRED COMPONENTS
+  ${PKG_DEPS}
+  ${OpenCV_INCLUDE_DIRS}
+)
+
+find_package(OpenCV 4.2.0 REQUIRED)
+
 ###########
 ## Build ##
 ###########
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(
-# include
+include_directories(include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
