@@ -31,6 +31,9 @@
   <!-- Start up gait controller -->
   <node name="gait_controller" pkg="hexapod_control" type="gait_controller" respawn="false" output="screen"/>
 
+  <!-- Start up OpenCV node -->
+  <!-- <node name="opencv_test" pkg="hexapod_control" type="opencv_test.py" output="screen"/> -->
+
   <!-- Start up force sensor and stability stuff -->
   <!-- <node name="force_sensor_node" pkg="hexapod_control" type="force_sensor_node" respawn="true"/>
   <node name="stability_margin_node" pkg="hexapod_control" type="stability_margin_node" respawn="true"/> -->
