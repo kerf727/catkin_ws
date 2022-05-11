@@ -14,7 +14,7 @@ from cv_bridge import CvBridge, CvBridgeError
 class image_converter:
 
   def __init__(self):
-    self.twist_pub = rospy.Publisher("hexapod/teleop/twist", Twist)
+    self.twist_pub = rospy.Publisher("hexapod/teleop/twist", Twist, queue_size=1)
     self.msg = Twist()
 
     self.state = "N/A"
