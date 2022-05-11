@@ -153,6 +153,7 @@ include_directories(include
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/hexapod_control.cpp
 # )
+add_library(gait_controller_library src/gait_controller_library.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -228,6 +229,7 @@ target_link_libraries(leg_R1_pose_action_server ${catkin_LIBRARIES})
 target_link_libraries(leg_R2_pose_action_server ${catkin_LIBRARIES})
 target_link_libraries(leg_R3_pose_action_server ${catkin_LIBRARIES})
 target_link_libraries(gait_controller ${catkin_LIBRARIES})
+target_link_libraries(gait_controller gait_controller_library ${catkin_LIBRARIES})
 target_link_libraries(follow_path ${catkin_LIBRARIES})
 # target_link_libraries(force_sensor_node ${catkin_LIBRARIES})
 # target_link_libraries(stability_margin_node ${catkin_LIBRARIES})
