@@ -12,7 +12,7 @@ const float MazePlugin::UNIT = 0.7; // 0.18 //distance between centers of square
 const float MazePlugin::WALL_HEIGHT = 0.15; // 0.05
 const float MazePlugin::WALL_LENGTH = 0.192*MazePlugin::UNIT/0.18; // 0.192
 const float MazePlugin::WALL_THICKNESS = 0.012*MazePlugin::UNIT/0.18; // 0.012
-const float MazePlugin::BASE_HEIGHT = 0.005;
+const float MazePlugin::BASE_HEIGHT = 0.005*MazePlugin::WALL_HEIGHT/0.05; // 0.005
 const float MazePlugin::PAINT_THICKNESS = 0.01*MazePlugin::WALL_HEIGHT/0.05; // 0.01
 // const float MazePlugin::UNIT = 0.18; //distance between centers of squares
 // const float MazePlugin::WALL_HEIGHT = 0.05;
@@ -56,6 +56,20 @@ void MazePlugin::Regenerate(ConstGzStringPtr &msg)
     model->GetAttribute("name")->Set("my_maze");
     model->GetElement("pose")->Set(ignition::math::Pose3d(0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
     parent->InsertModelSDF(*modelSDF);
+
+    // // sdf::SDFPtr worldSDF(new sdf::SDF());
+    // // std::string world_uri = "world://" + string(NPS_GAZEBO_WORLD);
+    // std::string world_uri = "/home/kerf/catkin_ws/src/hexapod/hexapod_gazebo/worlds/empty_world.world";
+    // std::string world_filename = sdf::findFile(world_uri, false);
+
+    // worldSDF.reset(new sdf::SDF);
+    // sdf::init(worldSDF);
+    // if (!sdf::readFile(world_filename, worldSDF)) {
+    //     gzmsg << "ERROR, could not read world " + world_filename << std::endl;
+    //     std::exit(-1);
+    // }
+    // worldSDF->Root()->GetFirstElement()->InsertElement(model);
+    // parent->InsertModelSDF(*worldSDF);
 }
 
 void MazePlugin::InsertWallsFromFile(sdf::ElementPtr base_link)
@@ -358,6 +372,7 @@ sdf::ElementPtr MazePlugin::LoadModel()
     sdf::initFile("root.sdf", modelSDF);
     sdf::readFile("maze_base/model.sdf", modelSDF);
     // sdf::readFile("/home/kerf/catkin_ws/src/hexapod/hexapod_gazebo/maze_base/model.sdf", modelSDF);
+    // commented out line works but maze base not fixed to world frame so vibrates as hexapod walks across it
 
     return modelSDF->Root()->GetElement("model");
 }

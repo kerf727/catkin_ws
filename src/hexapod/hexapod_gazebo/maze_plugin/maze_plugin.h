@@ -71,6 +71,7 @@ namespace gazebo
             physics::WorldPtr parent;
 
             sdf::SDFPtr modelSDF;
+            // sdf::SDFPtr worldSDF;
 
             std::string maze_filename;
 

@@ -54,11 +54,12 @@ class image_converter:
       d4 = depth_array[p4[1]][p4[0]]
       d5 = depth_array[p5[1]][p5[0]]
 
-      if d1 < self.threshold*1.2 or \
+      edge_multiplier = 1.2
+      if d1 < self.threshold*edge_multiplier or \
          d2 < self.threshold or \
          d3 < self.threshold or \
          d4 < self.threshold or \
-         d5 < self.threshold*1.2:
+         d5 < self.threshold*edge_multiplier:
         self.state = "Turn"
         self.msg.linear.x = 0.0
         self.msg.linear.y = 0.0
