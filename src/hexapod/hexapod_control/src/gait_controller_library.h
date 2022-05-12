@@ -1,3 +1,4 @@
+// Helper Functions for gait_controller.cpp
 #include "geometry_msgs/Point.h"
 
 geometry_msgs::Point calcCm(

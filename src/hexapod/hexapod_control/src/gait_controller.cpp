@@ -301,6 +301,7 @@ private:
             Tc = elapsed - last_elapsed; // control interval
         }
         last_elapsed = elapsed;
+        // diff_phase = Tc/stride_time; // TODO: make diff_phase global
 
         // Detect if a new command has been sent
         new_command_flag = false;
@@ -316,18 +317,18 @@ private:
         double tp_L1, tp_L2, tp_L3, tp_R1, tp_R2, tp_R3; // transfer phase
 
         std::tie(ci_L1, p_L1, sp_L1, tp_L1) = updateOneLeg(ci_L1, cw_L1, p_L1, init_phase_L1, init_L1, 0);
-        std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_phase_L2, init_L2, 0);
+        std::tie(ci_L2, p_L2, sp_L2, tp_L2) = updateOneLeg(ci_L2, cw_L2, p_L2, init_phase_L2, init_L2, 2);
         std::tie(ci_L3, p_L3, sp_L3, tp_L3) = updateOneLeg(ci_L3, cw_L3, p_L3, init_phase_L3, init_L3, 0);
         std::tie(ci_R1, p_R1, sp_R1, tp_R1) = updateOneLeg(ci_R1, cw_R1, p_R1, init_phase_R1, init_R1, 0);
         std::tie(ci_R2, p_R2, sp_R2, tp_R2) = updateOneLeg(ci_R2, cw_R2, p_R2, init_phase_R2, init_R2, 0);
-        std::tie(ci_R3, p_R3, sp_R3, tp_R3) = updateOneLeg(ci_R3, cw_R3, p_R3, init_phase_R3, init_R3, 0);
+        std::tie(ci_R3, p_R3, sp_R3, tp_R3) = updateOneLeg(ci_R3, cw_R3, p_R3, init_phase_R3, init_R3, 2);
  
-        sendL1PoseGoal(ci_L1);
-        sendL2PoseGoal(ci_L2);
-        sendL3PoseGoal(ci_L3);
-        sendR1PoseGoal(ci_R1);
-        sendR2PoseGoal(ci_R2);
-        sendR3PoseGoal(ci_R3);
+        sendPoseGoal(client_L1, ci_L1, eps);
+        sendPoseGoal(client_L2, ci_L2, eps);
+        sendPoseGoal(client_L3, ci_L3, eps);
+        sendPoseGoal(client_R1, ci_R1, eps);
+        sendPoseGoal(client_R2, ci_R2, eps);
+        sendPoseGoal(client_R3, ci_R3, eps);
 
         last_gait_mode = gait_mode;
         last_yaw = yaw;
@@ -402,10 +403,10 @@ private:
                 movementRoutine(current_phase, phi_w, theta, rmw, AEP, PEP, ci_old);
 
             // Reset phase if reached 1.0
-            if (current_phase >= 1.0)
-            {
-                current_phase = 0.0;
-            }
+            // if (current_phase >= 1.0)
+            // {
+            //     current_phase = 0.0;
+            // }
         }
         // Do nothing
         else
@@ -424,7 +425,7 @@ private:
                 ROS_INFO("stage: %s, current phase: %.3f, support phase: %.3f, transfer phase: %.3f",
                     stage.c_str(), current_phase, support_phase, transfer_phase);
                 ROS_INFO("diff_phase: %.3f, stride time: %.3f, stride height: %.3f", diff_phase, stride_time, stride_height);
-                ROS_INFO("dir: %.3f, rmw: %.3f, theta: %f", dir, rmw, theta);
+                ROS_INFO("dir: %.3f, rmw: %.3f, theta: %4.3e, Tc: %4.3e", dir, rmw, theta, Tc);
                 ROS_INFO("AEP: (%.3f, %.3f, %.3f); PEP: (%.3f, %.3f, %.3f)", AEP.x, AEP.y, AEP.z, PEP.x, PEP.y, PEP.z);
                 ROS_INFO("cm: (%.3f, %.3f);    ci: (%.3f, %.3f, %.3f)\n",
                     cm.x, cm.y, ci_new.x, ci_new.y, ci_new.z);
@@ -468,10 +469,10 @@ private:
             updated_current_phase += diff_phase;
             
             // Cap at duty_factor
-            if (updated_current_phase >= duty_factor)
-            {
-                updated_current_phase = duty_factor;
-            }
+            // if (updated_current_phase >= duty_factor)
+            // {
+            //     updated_current_phase = duty_factor;
+            // }
         }
         // Transfer Phase
         else
@@ -493,9 +494,15 @@ private:
             updated_current_phase += diff_phase;
 
             // Cap at 1.0
+            // if (updated_current_phase >= 1.0)
+            // {
+            //     updated_current_phase = 1.0;
+            // }
+
+            // Reset if over 1.0
             if (updated_current_phase >= 1.0)
             {
-                updated_current_phase = 1.0;
+                updated_current_phase -= 1.0;
             }
         }
 
@@ -553,6 +560,30 @@ private:
         return result;
     }
 
+    void sendPoseGoal(
+        actionlib::SimpleActionClient<hexapod_control::SetPoseAction>& client,
+        const geometry_msgs::Point& ci, const double& eps)
+    {
+        // Build message
+        hexapod_control::Pose target_pose;
+        target_pose.x = ci.x;
+        target_pose.y = ci.y;
+        target_pose.z = ci.z;
+        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
+        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
+        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
+
+        // Send goal to pose action client
+        hexapod_control::SetPoseGoal poseAction;
+        poseAction.eps = eps;
+        poseAction.goal = target_pose;
+
+        client.sendGoal(poseAction,
+            boost::bind(&GaitController::publishResult, this, _1, _2),
+            boost::bind(&GaitController::activeCB, this),
+            boost::bind(&GaitController::publishFeedback, this, _1));
+    }
+
     void publishFeedback(const hexapod_control::SetPoseFeedback::ConstPtr& poseFeedback)
     {
         current_pose = poseFeedback->current_pose;
@@ -568,133 +599,6 @@ private:
     {
 
     }
-
-    void sendL1PoseGoal(const geometry_msgs::Point& ci)
-    {
-        // Build message
-        hexapod_control::Pose target_pose;
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.eps = eps;
-        poseAction.goal = target_pose;
-        client_L1.sendGoal(poseAction,
-            boost::bind(&GaitController::publishResult, this, _1, _2),
-            boost::bind(&GaitController::activeCB, this),
-            boost::bind(&GaitController::publishFeedback, this, _1));
-    }
-
-    void sendL2PoseGoal(const geometry_msgs::Point& ci)
-    {
-        // Build message
-        hexapod_control::Pose target_pose;
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.eps = eps;
-        poseAction.goal = target_pose;
-        client_L2.sendGoal(poseAction,
-            boost::bind(&GaitController::publishResult, this, _1, _2),
-            boost::bind(&GaitController::activeCB, this),
-            boost::bind(&GaitController::publishFeedback, this, _1));
-    }
-
-    void sendL3PoseGoal(const geometry_msgs::Point& ci)
-    {
-        // Build message
-        hexapod_control::Pose target_pose;
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.eps = eps;
-        poseAction.goal = target_pose;
-        client_L3.sendGoal(poseAction,
-            boost::bind(&GaitController::publishResult, this, _1, _2),
-            boost::bind(&GaitController::activeCB, this),
-            boost::bind(&GaitController::publishFeedback, this, _1));
-    }
-
-    void sendR1PoseGoal(const geometry_msgs::Point& ci)
-    {
-        // Build message
-        hexapod_control::Pose target_pose;
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.eps = eps;
-        poseAction.goal = target_pose;
-        client_R1.sendGoal(poseAction,
-            boost::bind(&GaitController::publishResult, this, _1, _2),
-            boost::bind(&GaitController::activeCB, this),
-            boost::bind(&GaitController::publishFeedback, this, _1));
-    }
-
-    void sendR2PoseGoal(const geometry_msgs::Point& ci)
-    {
-        // Build message
-        hexapod_control::Pose target_pose;
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.eps = eps;
-        poseAction.goal = target_pose;
-        client_R2.sendGoal(poseAction,
-            boost::bind(&GaitController::publishResult, this, _1, _2),
-            boost::bind(&GaitController::activeCB, this),
-            boost::bind(&GaitController::publishFeedback, this, _1));
-    }
-
-    void sendR3PoseGoal(const geometry_msgs::Point& ci)
-    {
-        // Build message
-        hexapod_control::Pose target_pose;
-        target_pose.x = ci.x;
-        target_pose.y = ci.y;
-        target_pose.z = ci.z;
-        target_pose.rotx = std::vector<double>{1.0, 0.0, 0.0};
-        target_pose.roty = std::vector<double>{0.0, 1.0, 0.0};
-        target_pose.rotz = std::vector<double>{0.0, 0.0, 1.0};
-
-        // Send goal to pose action client
-        hexapod_control::SetPoseGoal poseAction;
-        poseAction.eps = eps;
-        poseAction.goal = target_pose;
-        client_R3.sendGoal(poseAction,
-            boost::bind(&GaitController::publishResult, this, _1, _2),
-            boost::bind(&GaitController::activeCB, this),
-            boost::bind(&GaitController::publishFeedback, this, _1));
-    }
-
 };
 
 int main(int argc, char **argv)
