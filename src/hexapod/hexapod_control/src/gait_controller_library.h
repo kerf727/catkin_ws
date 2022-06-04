@@ -8,7 +8,7 @@ geometry_msgs::Point calcCw(
     const double& base_height, const double& base_radius,
     const double& hip_angle, const double& dcw);
 
-double calcPhiI(
+double calcPhiI( // TODO: decide if cm needs to be passed in (currently global variable)
     const geometry_msgs::Point& cm, const geometry_msgs::Point& ci);
 
 std::tuple<double, double> calcPhiW(
@@ -34,3 +34,17 @@ double mapRange(const double& inValue,
 std::tuple<double, double> calcStepRadius(
     const double& base_height, const double& coxa_length,
     const double& femur_length, const double& tibia_length);
+
+enum class WalkState {
+    Idle,
+    Initialize,
+    Move,
+    Uninitialize
+};
+
+std::map<WalkState, WalkState> stateTransitions = {
+    {WalkState::Idle,           WalkState::Initialize},
+    {WalkState::Initialize,     WalkState::Move},
+    {WalkState::Move,           WalkState::Uninitialize},
+    {WalkState::Uninitialize,   WalkState::Idle}
+};
