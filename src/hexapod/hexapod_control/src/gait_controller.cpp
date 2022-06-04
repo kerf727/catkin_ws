@@ -55,7 +55,6 @@ public:
         hip_angle_R3 = hip_angle_R3*M_PI/180.0;
 
         start = ros::Time::now().toSec();
-        publish_rate = 0.02; // 50Hz
         timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&GaitController::updateAllLegs, this));
 
         std::tie(dcw, dwi) = calcStepRadius(base_height, coxa_length, femur_length, tibia_length);
@@ -116,13 +115,14 @@ private:
     ros::Subscriber buttonSubscriber;
     ros::ServiceClient linkStateClient;
     hexapod_control::Pose current_pose;
-    double publish_rate;
+    double publish_rate = 0.02; // 50Hz
     ros::Timer timer;
     boost::mutex publish_mutex;
     double start, t, elapsed, last_elapsed, Tc, delta_phi;
     double femur_length, tibia_length, coxa_length, base_radius, base_height;
     double hip_angle_L1, hip_angle_L2, hip_angle_L3, hip_angle_R1, hip_angle_R2, hip_angle_R3;
     double init_phase_L1, init_phase_L2, init_phase_L3, init_phase_R1, init_phase_R2, init_phase_R3;
+    double leg_speed_L1, leg_speed_L2, leg_speed_L3, leg_speed_R1, leg_speed_R2, leg_speed_R3;
 	double stride_height, duty_factor, lowering_point;
     double dwi, dcw;
     geometry_msgs::Point cm;
@@ -158,7 +158,7 @@ private:
     int gait_counter = 0;
     std::string gait_type = "tetrapod";
     double eps = 0.05;
-    int verbose_global = 0;
+    int verbose_global = 3;
 
     void buttonCB(const std_msgs::BoolConstPtr& msg)
     {
@@ -303,12 +303,12 @@ private:
         rm = speed/yaw; // distance from body center to motion center
         cm = calcCm(yaw_angle, rm, base_height); // motion center
 
-        updateOneLeg(ci_L1, cw_L1, s_L1, p_L1, init_phase_L1, init_L1, 0);
-        updateOneLeg(ci_L2, cw_L2, s_L2, p_L2, init_phase_L2, init_L2, 2);
-        updateOneLeg(ci_L3, cw_L3, s_L3, p_L3, init_phase_L3, init_L3, 0);
-        updateOneLeg(ci_R1, cw_R1, s_R1, p_R1, init_phase_R1, init_R1, 0);
-        updateOneLeg(ci_R2, cw_R2, s_R2, p_R2, init_phase_R2, init_R2, 0);
-        updateOneLeg(ci_R3, cw_R3, s_R3, p_R3, init_phase_R3, init_R3, 2);
+        updateOneLeg(ci_L1, cw_L1, s_L1, p_L1, init_phase_L1, init_L1, leg_speed_L1, 0);
+        updateOneLeg(ci_L2, cw_L2, s_L2, p_L2, init_phase_L2, init_L2, leg_speed_L2, 2);
+        updateOneLeg(ci_L3, cw_L3, s_L3, p_L3, init_phase_L3, init_L3, leg_speed_L3, 0);
+        updateOneLeg(ci_R1, cw_R1, s_R1, p_R1, init_phase_R1, init_R1, leg_speed_R1, 0);
+        updateOneLeg(ci_R2, cw_R2, s_R2, p_R2, init_phase_R2, init_R2, leg_speed_R2, 0);
+        updateOneLeg(ci_R3, cw_R3, s_R3, p_R3, init_phase_R3, init_R3, leg_speed_R3, 0);
  
         sendPoseGoal(client_L1, ci_L1, eps);
         sendPoseGoal(client_L2, ci_L2, eps);
@@ -335,7 +335,7 @@ private:
     void updateOneLeg(
         geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
         WalkState& state, int& gait_phase, const double& init_phase, bool& initialized,
-        const int& verbose)
+        double& leg_speed, const int& verbose)
     {
         geometry_msgs::Point AEP, PEP, cm_to_AEP, cm_to_PEP;
         double phi_i, phi_w, phi_AEP, phi_PEP;
@@ -353,9 +353,10 @@ private:
             case WalkState::Idle :
                 if (verbose >= 1)
                 {
-                    ROS_INFO("Not moving.");
+                    ROS_INFO("Idle State");
                 }
-                ci = cw;
+
+                leg_speed = Idle(ci, cw, PEP, init_phase, theta, verbose);
 
                 if (!initialized && gait_mode != "Default")
                 {
@@ -364,7 +365,12 @@ private:
                 break;
             
             case WalkState::Initialize :
-                Initialize(ci, gait_phase, init_phase, initialized, theta, phi_i, PEP, phi_PEP);
+                if (verbose >= 1)
+                {
+                    ROS_INFO("Initialize State");
+                }
+
+                Initialize(ci, gait_phase, init_phase, initialized, leg_speed, phi_i, PEP, phi_PEP, verbose);
 
                 if (initialized)
                 {
@@ -373,6 +379,11 @@ private:
                 break;
 
             case WalkState::Move :
+                if (verbose >= 1)
+                {
+                    ROS_INFO("Move State");
+                }
+
                 Move(ci, gait_phase, rmw, phi_i, AEP, PEP, phi_AEP, phi_PEP);
 
                 if (initialized && gait_mode == "Default")
@@ -382,6 +393,11 @@ private:
                 break;
 
             case WalkState::Uninitialize :
+                if (verbose >= 1)
+                {
+                    ROS_INFO("Uninitialize State");
+                }
+
                 Uninitialize(ci, gait_phase, init_phase, initialized);
 
                 if (!initialized)
@@ -406,28 +422,18 @@ private:
         }
     }
 
-    void Initialize(
-        geometry_msgs::Point& ci, int& gait_phase,
-        const double& init_phase, bool& initialized,
-        const double& theta, const double& phi_i,
-        const geometry_msgs::Point& PEP, const double& phi_PEP)
+    double Idle(
+        geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
+        const geometry_msgs::Point& PEP,
+        const double& init_phase, const double& theta, const int& verbose)
     {
-        // Assumes that robot legs will only ever start in support phase due to designed phase overlap
-
         double stride_time, support_time, support_phase;
         double remaining_support_time, leg_speed;
-        double dist_ci_PEP, phi_minus;
+        double dist_ci_PEP;
 
-        // Reached PEP, set to initialized
-        phi_minus = dir*(phi_PEP - phi_i);
-        if (phi_minus <= 0.0)
-        {
-            ci = PEP;
-            gait_phase = 2;
-            initialized = true;
-            return;
-        }
-
+        ci = cw; // constant for idle state
+        
+        // TODO: update to only run below code once?
         stride_time = abs(2.0*theta/yaw);
         support_time = stride_time*duty_factor;
         if (init_phase == 0.0)
@@ -441,10 +447,55 @@ private:
         remaining_support_time = (1.0 - support_phase)*support_time;
         dist_ci_PEP = sqrt(pow(PEP.x - ci.x, 2) + pow(PEP.y - ci.y, 2));
         leg_speed = dist_ci_PEP/remaining_support_time;
+        
+        if (verbose >= 2)
+        {
+            ROS_INFO("stride_time: %.3f, support_phase: %.3f", stride_time, support_phase);
+            ROS_INFO("remaining_support_time: %.3f, dist_ci_PEP: %.3f, leg_speed: %.3f", remaining_support_time, dist_ci_PEP, leg_speed);
+        }
 
-        ci.x += leg_speed*Tc*cos(yaw_angle + M_PI);
-        ci.y += leg_speed*Tc*sin(yaw_angle + M_PI);
+        return leg_speed;
+    }
+
+    void Initialize(
+        geometry_msgs::Point& ci, int& gait_phase,
+        const double& init_phase, bool& initialized,
+        const double& leg_speed, const double& phi_i,
+        const geometry_msgs::Point& PEP, const double& phi_PEP,
+        const int& verbose)
+    {
+        // Assumes that robot legs will only ever start in support phase due to designed phase overlap
+
+        double phi_minus, leg_pos;
+
+        phi_minus = dir*(phi_PEP - phi_i);
+        if (verbose >= 2)
+        {
+            ROS_INFO("phi_minus: %4.3e", phi_minus);
+        }
+
+        // Reached PEP, set to initialized
+        if (phi_minus <= 0.0)
+        {
+            ci = PEP;
+            gait_phase = 2;
+            initialized = true;
+            if (verbose >= 2)
+            {
+                ROS_INFO("Initialized");
+            }
+            return;
+        }
+
+        leg_pos = leg_speed*Tc;
+        ci.x += leg_pos*cos(yaw_angle + M_PI);
+        ci.y += leg_pos*sin(yaw_angle + M_PI);
         ci.z = -base_height;
+
+        if (verbose >= 2)
+        {
+            ROS_INFO("init_phase: %.3f, leg_speed: %.3f, leg_pos: %.4f", init_phase, leg_speed, leg_pos);
+        }
     }
 
     void Move(
