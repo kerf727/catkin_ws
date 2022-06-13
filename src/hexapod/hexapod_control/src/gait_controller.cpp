@@ -303,6 +303,8 @@ private:
         rm = speed/yaw; // distance from body center to motion center
         cm = calcCm(yaw_angle, rm, base_height); // motion center
 
+        min_next_step = 1e6; // reset minimum before next round
+
         updateOneLeg(ci_L1, cw_L1, s_L1, p_L1, init_phase_L1, init_L1, leg_speed_L1, 0);
         updateOneLeg(ci_L2, cw_L2, s_L2, p_L2, init_phase_L2, init_L2, leg_speed_L2, 2);
         updateOneLeg(ci_L3, cw_L3, s_L3, p_L3, init_phase_L3, init_L3, leg_speed_L3, 0);
@@ -356,7 +358,7 @@ private:
                     ROS_INFO("Idle State");
                 }
 
-                leg_speed = Idle(ci, cw, PEP, init_phase, theta, verbose);
+                leg_speed = Idle(ci, cw, PEP, gait_phase, init_phase, theta, verbose);
 
                 if (!initialized && gait_mode != "Default")
                 {
@@ -381,10 +383,10 @@ private:
             case WalkState::Move :
                 if (verbose >= 1)
                 {
-                    ROS_INFO("Move State");
+                    ROS_INFO("Move State, gait_phase: %d", gait_phase);
                 }
 
-                Move(ci, gait_phase, rmw, phi_i, AEP, PEP, phi_AEP, phi_PEP);
+                Move(ci, gait_phase, rmw, phi_i, AEP, PEP, phi_AEP, phi_PEP, verbose);
 
                 if (initialized && gait_mode == "Default")
                 {
@@ -424,7 +426,7 @@ private:
 
     double Idle(
         geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
-        const geometry_msgs::Point& PEP,
+        const geometry_msgs::Point& PEP, int& gait_phase,
         const double& init_phase, const double& theta, const int& verbose)
     {
         double stride_time, support_time, support_phase;
@@ -432,6 +434,7 @@ private:
         double dist_ci_PEP;
 
         ci = cw; // constant for idle state
+        gait_phase = 1;
         
         // TODO: update to only run below code once?
         stride_time = abs(2.0*theta/yaw);
@@ -451,7 +454,7 @@ private:
         if (verbose >= 2)
         {
             ROS_INFO("stride_time: %.3f, support_phase: %.3f", stride_time, support_phase);
-            ROS_INFO("remaining_support_time: %.3f, dist_ci_PEP: %.3f, leg_speed: %.3f", remaining_support_time, dist_ci_PEP, leg_speed);
+            // ROS_INFO("remaining_support_time: %.3f, dist_ci_PEP: %.3f, leg_speed: %.3f", remaining_support_time, dist_ci_PEP, leg_speed);
         }
 
         return leg_speed;
@@ -468,6 +471,7 @@ private:
 
         double phi_minus, leg_pos;
 
+        gait_phase = 1;
         phi_minus = dir*(phi_PEP - phi_i);
         if (verbose >= 2)
         {
@@ -502,7 +506,8 @@ private:
         geometry_msgs::Point& ci, int& gait_phase,
         const double& rmw, const double& phi_i,
         const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
-        const double& phi_AEP, const double& phi_PEP)
+        const double& phi_AEP, const double& phi_PEP,
+        const int& verbose)
     {
         double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, phi_minus;
         double tG_plus, next_step, delta_tG, k_plus;
@@ -510,56 +515,73 @@ private:
         alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
         d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
         PEP_to_AEP = sqrt(pow(AEP.x - PEP.x, 2) + pow(AEP.y - PEP.y, 2));
-        phi_plus = dir*(phi_i - phi_AEP);
-        phi_minus = dir*(phi_PEP - phi_i);
-        
-        tG_plus = phi_AEP/yaw;
-        next_step = phi_plus/tG_plus;
-        if (next_step < min_next_step)
+        phi_plus = dir*(phi_PEP - phi_i); // remaining support angle
+        phi_minus = dir*(phi_i - phi_AEP); // remaining transfer angle
+
+        if (gait_phase == 1)
         {
-            min_next_step = next_step;
+            tG_plus = phi_plus/yaw; // time left until end of current gait phase for each leg on ground
+            next_step = phi_plus/tG_plus;
+
+            if (next_step < min_next_step)
+            {
+                min_next_step = next_step;
+            }
+            ROS_INFO("next_step: %4.3e", next_step);
+        }
+        else
+        {
+            tG_plus = phi_minus/yaw; // this never happens so far
         }
         
         // TODO: doesn't wait to calculate for all legs in new loop - could unintentionally use old min
-        delta_tG = abs(delta_phi/min_next_step);
-        k_plus = round(tG_plus/delta_tG);
+        // if (min_next_step > 0.0)
+        // {
+            delta_tG = abs(delta_phi/min_next_step);
+            k_plus = round(tG_plus/delta_tG);
+        // }
+        // else
+        // {
+        //     delta_tG = 0.0;
+        //     k_plus = 0.0;
+        // }
+
+        // delta_tG = abs(delta_phi/next_step);
+        // k_plus = round(tG_plus/delta_tG);
 
         // Support Phase
         if (gait_phase == 1)
         {
+            ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
+            ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
+            ci.z = -base_height;
+            
             if (phi_minus <= 0.0)
             {
                 ci = PEP;
                 gait_phase = 2;
-                // TODO: figure out how this can be synced to desired duty_factor
-            }
-            else
-            {
-                ci.x = rmw*cos(phi_i + delta_phi) + cm.x;
-                ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
-                ci.z = -base_height;
             }
         }
         // Transfer Phase - Lifting
         else if (gait_phase == 2)
         {
-            if (phi_plus <= 0.0)
+            // TODO: figure out how this can be synced to desired duty_factor
+            ci.x = ci.x + (d_AEP + stride_height)*cos(alpha)/k_plus;
+            ci.y = ci.y + (d_AEP + stride_height)*sin(alpha)/k_plus;
+            ci.z = LPF1(-stride_height, ci.z, 0.2); // TODO: make dependent on k_plus?
+            
+            if (d_AEP < 0.005)
             {
                 ci.x = AEP.x;
                 ci.y = AEP.y;
                 ci.z = -base_height + stride_height;
                 gait_phase = 3;
             }
-            else
-            {
-                ci.x = ci.x + (d_AEP + stride_height)*cos(alpha)/k_plus;
-                ci.y = ci.y + (d_AEP + stride_height)*sin(alpha)/k_plus;
-                ci.z = LPF1(-stride_height, ci.z, 0.1);
-            }
         }
         // Transfer Phase - Lowering
         else if (gait_phase == 3)
         {
+            // TODO: figure out how this can be synced to desired duty_factor
             ci.x = AEP.x;
             ci.y = AEP.y;
             ci.z -= (stride_height + ci.z)/k_plus;
@@ -569,6 +591,12 @@ private:
                 ci = AEP;
                 gait_phase = 1;
             }
+        }
+
+        if (verbose >= 2)
+        {
+            ROS_INFO("phi_plus: %4.3e, phi_minus: %4.3e, d_AEP: %.3f, alpha: %.3f", phi_plus, phi_minus, d_AEP, alpha);
+            ROS_INFO("tG+: %.3f, delta_tG: %4.3e, next_step: %4.3e, min_n_s: %4.3e, k+: %.0f", tG_plus, delta_tG, next_step, min_next_step, k_plus);
         }
     }
 
