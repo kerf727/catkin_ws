@@ -45,7 +45,7 @@ public:
 
         publish_rate_Hz = 10;
         publish_rate_s = 0.1;
-        // timer = node.createTimer(ros::Duration(publish_rate), boost::bind(&TestSimpleMovement::publishPathPeriodically, this));
+        timer = node.createTimer(ros::Duration(publish_rate_s), boost::bind(&TestSimpleMovement::publishPath, this));
 
         ROS_INFO("Publishing Path Commands.\n");
         publishPath();
@@ -84,11 +84,11 @@ private:
     void publishPath()
     {
         // Simply move in a straight line
-        pathCommand(0.0, 1.0, 0.0, 10.0);
-        // twist_msg.linear.x = 0.0;
-        // twist_msg.linear.y = 1.0;
-        // twist_msg.angular.x = 0.0;
-        // twistPublisher.publish(twist_msg);
+        // pathCommand(0.0, 1.0, 0.0, 10.0);
+        twist_msg.linear.x = 0.0;
+        twist_msg.linear.y = 1.0;
+        twist_msg.angular.x = 0.0;
+        twistPublisher.publish(twist_msg);
     }
 
     void pathWaypoint(
