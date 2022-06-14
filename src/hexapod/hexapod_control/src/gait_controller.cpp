@@ -91,6 +91,9 @@ public:
         yaw_angle = 0.0;
         last_yaw = yaw;
         last_yaw_angle = yaw_angle;
+
+        // TODO: pick better number? reset before next round?
+        min_leg_yaw = 1e6; // reset minimum before next round
         
         lowering_point = 0.9;
         verbose_global = 2;
@@ -119,6 +122,7 @@ private:
     ros::Timer timer;
     boost::mutex publish_mutex;
     double start, t, elapsed, last_elapsed, Tc, delta_phi;
+    double tG, delta_tG;
     double femur_length, tibia_length, coxa_length, base_radius, base_height;
     double hip_angle_L1, hip_angle_L2, hip_angle_L3, hip_angle_R1, hip_angle_R2, hip_angle_R3;
     double init_phase_L1, init_phase_L2, init_phase_L3, init_phase_R1, init_phase_R2, init_phase_R3;
@@ -153,7 +157,7 @@ private:
     double yaw_eps = 1e-6;
     double max_speed, max_yaw;
     double rm, dir;
-    double min_next_step;
+    double min_leg_yaw;
     bool B_button = false;
     int gait_counter = 0;
     std::string gait_type = "tetrapod";
@@ -303,7 +307,8 @@ private:
         rm = speed/yaw; // distance from body center to motion center
         cm = calcCm(yaw_angle, rm, base_height); // motion center
 
-        min_next_step = 1e6; // reset minimum before next round
+        delta_tG = abs(delta_phi/min_leg_yaw);
+        tG = fmod(tG + delta_tG, 1.0); // gait time universal to all legs (phase)
 
         updateOneLeg(ci_L1, cw_L1, s_L1, p_L1, init_phase_L1, init_L1, leg_speed_L1, 0);
         updateOneLeg(ci_L2, cw_L2, s_L2, p_L2, init_phase_L2, init_L2, leg_speed_L2, 2);
@@ -386,7 +391,7 @@ private:
                     ROS_INFO("Move State, gait_phase: %d", gait_phase);
                 }
 
-                Move(ci, gait_phase, rmw, phi_i, AEP, PEP, phi_AEP, phi_PEP, verbose);
+                Move(ci, gait_phase, init_phase, rmw, phi_i, AEP, PEP, phi_AEP, phi_PEP, verbose);
 
                 if (initialized && gait_mode == "Default")
                 {
@@ -437,8 +442,7 @@ private:
         gait_phase = 1;
         
         // TODO: update to only run below code once?
-        stride_time = abs(2.0*theta/yaw);
-        support_time = stride_time*duty_factor;
+        support_time = abs(2.0*theta/yaw);
         if (init_phase == 0.0)
         {
             support_phase = 0.0;
@@ -469,7 +473,7 @@ private:
     {
         // Assumes that robot legs will only ever start in support phase due to designed phase overlap
 
-        double phi_minus, leg_pos;
+        double phi_minus, leg_delta;
 
         gait_phase = 1;
         phi_minus = dir*(phi_PEP - phi_i);
@@ -491,26 +495,26 @@ private:
             return;
         }
 
-        leg_pos = leg_speed*Tc;
-        ci.x += leg_pos*cos(yaw_angle + M_PI);
-        ci.y += leg_pos*sin(yaw_angle + M_PI);
+        leg_delta = leg_speed*Tc;
+        ci.x += leg_delta*cos(yaw_angle + M_PI);
+        ci.y += leg_delta*sin(yaw_angle + M_PI);
         ci.z = -base_height;
 
         if (verbose >= 2)
         {
-            ROS_INFO("init_phase: %.3f, leg_speed: %.3f, leg_pos: %.4f", init_phase, leg_speed, leg_pos);
+            ROS_INFO("init_phase: %.3f, leg_speed: %.3f, leg_delta: %.4f", init_phase, leg_speed, leg_delta);
         }
     }
 
     void Move(
-        geometry_msgs::Point& ci, int& gait_phase,
+        geometry_msgs::Point& ci, int& gait_phase, const double& init_phase,
         const double& rmw, const double& phi_i,
         const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
         const double& phi_AEP, const double& phi_PEP,
         const int& verbose)
     {
         double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, phi_minus;
-        double tG_plus, next_step, delta_tG, k_plus;
+        double tG_plus, k_plus, leg_yaw;
 
         alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
         d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
@@ -518,36 +522,21 @@ private:
         phi_plus = dir*(phi_PEP - phi_i); // remaining support angle
         phi_minus = dir*(phi_i - phi_AEP); // remaining transfer angle
 
+        tG_plus = fmod(init_phase + duty_factor - tG, 1.0);
+
+        // Support Phase
         if (gait_phase == 1)
         {
-            tG_plus = phi_plus/yaw; // time left until end of current gait phase for each leg on ground
-            next_step = phi_plus/tG_plus;
+            leg_yaw = phi_plus/tG_plus;
 
-            if (next_step < min_next_step)
+            if (leg_yaw < min_leg_yaw)
             {
-                min_next_step = next_step;
+                min_leg_yaw = leg_yaw;
+                delta_tG = abs(delta_phi/min_leg_yaw);
             }
-            ROS_INFO("next_step: %4.3e", next_step);
-        }
-        else
-        {
-            tG_plus = phi_minus/yaw; // this never happens so far
         }
         
-        // TODO: doesn't wait to calculate for all legs in new loop - could unintentionally use old min
-        // if (min_next_step > 0.0)
-        // {
-            delta_tG = abs(delta_phi/min_next_step);
-            k_plus = round(tG_plus/delta_tG);
-        // }
-        // else
-        // {
-        //     delta_tG = 0.0;
-        //     k_plus = 0.0;
-        // }
-
-        // delta_tG = abs(delta_phi/next_step);
-        // k_plus = round(tG_plus/delta_tG);
+        k_plus = round(tG_plus/delta_tG);
 
         // Support Phase
         if (gait_phase == 1)
@@ -556,7 +545,7 @@ private:
             ci.y = rmw*sin(phi_i + delta_phi) + cm.y;
             ci.z = -base_height;
             
-            if (phi_minus <= 0.0)
+            if (phi_plus <= 0.0)
             {
                 ci = PEP;
                 gait_phase = 2;
@@ -570,7 +559,7 @@ private:
             ci.y = ci.y + (d_AEP + stride_height)*sin(alpha)/k_plus;
             ci.z = LPF1(-stride_height, ci.z, 0.2); // TODO: make dependent on k_plus?
             
-            if (d_AEP < 0.005)
+            if (d_AEP < 0.005) // TODO: avoid hard-coding this
             {
                 ci.x = AEP.x;
                 ci.y = AEP.y;
@@ -584,7 +573,8 @@ private:
             // TODO: figure out how this can be synced to desired duty_factor
             ci.x = AEP.x;
             ci.y = AEP.y;
-            ci.z -= (stride_height + ci.z)/k_plus;
+            // ci.z += (-base_height + stride_height + ci.z)/k_plus;
+            ci.z += (-base_height + stride_height + ci.z)/10.0; // TODO: avoid hard-coding this
 
             if (ci.z <= -base_height)
             {
@@ -596,7 +586,7 @@ private:
         if (verbose >= 2)
         {
             ROS_INFO("phi_plus: %4.3e, phi_minus: %4.3e, d_AEP: %.3f, alpha: %.3f", phi_plus, phi_minus, d_AEP, alpha);
-            ROS_INFO("tG+: %.3f, delta_tG: %4.3e, next_step: %4.3e, min_n_s: %4.3e, k+: %.0f", tG_plus, delta_tG, next_step, min_next_step, k_plus);
+            ROS_INFO("tG: %.3f, tG+: %.3f, delta_tG: %4.3e, leg_yaw: %4.3e, min_leg_yaw: %4.3e, k+: %.0f", tG, tG_plus, delta_tG, leg_yaw, min_leg_yaw, k_plus);
         }
     }
 
