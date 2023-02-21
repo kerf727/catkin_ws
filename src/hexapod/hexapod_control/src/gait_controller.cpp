@@ -92,8 +92,8 @@ public:
         last_yaw = yaw;
         last_yaw_angle = yaw_angle;
 
-        // TODO: pick better number? reset before next round?
-        min_leg_yaw = 1e6; // reset minimum before next round
+        // TODO: pick better number?
+        min_leg_yaw = 1e6;
         
         lowering_point = 0.9;
         verbose_global = 2;
@@ -127,6 +127,7 @@ private:
     double hip_angle_L1, hip_angle_L2, hip_angle_L3, hip_angle_R1, hip_angle_R2, hip_angle_R3;
     double init_phase_L1, init_phase_L2, init_phase_L3, init_phase_R1, init_phase_R2, init_phase_R3;
     double leg_speed_L1, leg_speed_L2, leg_speed_L3, leg_speed_R1, leg_speed_R2, leg_speed_R3;
+    double leg_yaw_L1, leg_yaw_L2, leg_yaw_L3, leg_yaw_R1, leg_yaw_R2, leg_yaw_R3;
 	double stride_height, duty_factor, lowering_point;
     double dwi, dcw;
     geometry_msgs::Point cm;
@@ -157,10 +158,11 @@ private:
     double yaw_eps = 1e-6;
     double max_speed, max_yaw;
     double rm, dir;
+    std::vector<double> leg_yaw_vector;
     double min_leg_yaw;
     bool B_button = false;
-    int gait_counter = 0;
-    std::string gait_type = "tetrapod";
+    int gait_counter = 1;
+    std::string gait_type = "tripod";
     double eps = 0.05;
     int verbose_global = 3;
 
@@ -310,12 +312,12 @@ private:
         delta_tG = abs(delta_phi/min_leg_yaw);
         tG = fmod(tG + delta_tG, 1.0); // gait time universal to all legs (phase)
 
-        updateOneLeg(ci_L1, cw_L1, s_L1, p_L1, init_phase_L1, init_L1, leg_speed_L1, 0);
-        updateOneLeg(ci_L2, cw_L2, s_L2, p_L2, init_phase_L2, init_L2, leg_speed_L2, 2);
-        updateOneLeg(ci_L3, cw_L3, s_L3, p_L3, init_phase_L3, init_L3, leg_speed_L3, 0);
-        updateOneLeg(ci_R1, cw_R1, s_R1, p_R1, init_phase_R1, init_R1, leg_speed_R1, 0);
-        updateOneLeg(ci_R2, cw_R2, s_R2, p_R2, init_phase_R2, init_R2, leg_speed_R2, 0);
-        updateOneLeg(ci_R3, cw_R3, s_R3, p_R3, init_phase_R3, init_R3, leg_speed_R3, 0);
+        updateOneLeg(ci_L1, cw_L1, s_L1, p_L1, init_phase_L1, init_L1, leg_speed_L1, leg_yaw_L1, 0);
+        updateOneLeg(ci_L2, cw_L2, s_L2, p_L2, init_phase_L2, init_L2, leg_speed_L2, leg_yaw_L2, 2);
+        updateOneLeg(ci_L3, cw_L3, s_L3, p_L3, init_phase_L3, init_L3, leg_speed_L3, leg_yaw_L3, 0);
+        updateOneLeg(ci_R1, cw_R1, s_R1, p_R1, init_phase_R1, init_R1, leg_speed_R1, leg_yaw_R1, 0);
+        updateOneLeg(ci_R2, cw_R2, s_R2, p_R2, init_phase_R2, init_R2, leg_speed_R2, leg_yaw_R2, 0);
+        updateOneLeg(ci_R3, cw_R3, s_R3, p_R3, init_phase_R3, init_R3, leg_speed_R3, leg_yaw_R3, 0);
  
         sendPoseGoal(client_L1, ci_L1, eps);
         sendPoseGoal(client_L2, ci_L2, eps);
@@ -327,6 +329,21 @@ private:
         last_gait_mode = gait_mode;
         last_yaw = yaw;
         last_yaw_angle = yaw_angle;
+
+        min_leg_yaw = 1e6;
+        leg_yaw_vector = {leg_yaw_L1,
+                          leg_yaw_L2,
+                          leg_yaw_L3,
+                          leg_yaw_R1,
+                          leg_yaw_R2,
+                          leg_yaw_R3};
+        for (double leg_yaw : leg_yaw_vector)
+        {
+            if (leg_yaw < min_leg_yaw)
+            {
+                min_leg_yaw = leg_yaw;
+            }
+        }
 
         if (verbose_global >= 3)
         {
@@ -342,10 +359,10 @@ private:
     void updateOneLeg(
         geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
         WalkState& state, int& gait_phase, const double& init_phase, bool& initialized,
-        double& leg_speed, const int& verbose)
+        double& leg_speed, double& leg_yaw, const int& verbose)
     {
         geometry_msgs::Point AEP, PEP, cm_to_AEP, cm_to_PEP;
-        double phi_i, phi_w, phi_AEP, phi_PEP;
+        double phi_i, phi_w, phi_AEP, phi_PEP, phi_plus;
         double rmw, theta;
 
         phi_i = calcPhiI(cm, ci);
@@ -354,6 +371,7 @@ private:
         theta = calcTheta(rmw, dwi);
         std::tie(AEP, PEP) = calcAEPPEP(cm, rmw, phi_w, dir, theta, base_height);
         std::tie(phi_i, phi_AEP, phi_PEP) = calcPhiAEPPEP(cm, AEP, PEP, phi_i);
+        phi_plus = dir*(phi_PEP - phi_i);
 
         switch(state)
         {
@@ -363,7 +381,7 @@ private:
                     ROS_INFO("Idle State");
                 }
 
-                leg_speed = Idle(ci, cw, PEP, gait_phase, init_phase, theta, verbose);
+                leg_speed = Idle(ci, cw, PEP, gait_phase, init_phase, theta, leg_yaw, phi_plus, verbose);
 
                 if (!initialized && gait_mode != "Default")
                 {
@@ -377,7 +395,7 @@ private:
                     ROS_INFO("Initialize State");
                 }
 
-                Initialize(ci, gait_phase, init_phase, initialized, leg_speed, phi_i, PEP, phi_PEP, verbose);
+                Initialize(ci, gait_phase, init_phase, initialized, leg_speed, phi_plus, PEP, leg_yaw, verbose);
 
                 if (initialized)
                 {
@@ -391,7 +409,7 @@ private:
                     ROS_INFO("Move State, gait_phase: %d", gait_phase);
                 }
 
-                Move(ci, gait_phase, init_phase, rmw, phi_i, AEP, PEP, phi_AEP, phi_PEP, verbose);
+                Move(ci, gait_phase, init_phase, rmw, phi_i, AEP, PEP, phi_AEP, phi_PEP, leg_yaw, verbose);
 
                 if (initialized && gait_mode == "Default")
                 {
@@ -420,11 +438,13 @@ private:
             {
                 ROS_INFO("dir: %.3f, rmw: %.3f, theta: %4.3e, Tc: %.3f", dir, rmw, theta, Tc);
                 ROS_INFO("AEP: (%.3f, %.3f, %.3f); PEP: (%.3f, %.3f, %.3f)", AEP.x, AEP.y, AEP.z, PEP.x, PEP.y, PEP.z);
+                ROS_INFO("phi_plus: %4.3e, leg_yaw: %4.3e, min_leg_yaw: %4.3e", phi_plus, leg_yaw, min_leg_yaw);
                 ROS_INFO("cm: (%.3f, %.3f);    ci: (%.3f, %.3f, %.3f)\n", cm.x, cm.y, ci.x, ci.y, ci.z);
             }
             else
             {
                 ROS_INFO("Default. ci: (%.3f, %.3f, %.3f)\n", ci.x, ci.y, ci.z);
+                ROS_INFO("phi_plus: %4.3e, leg_yaw: %4.3e, min_leg_yaw: %4.3e", phi_plus, leg_yaw, min_leg_yaw);
             }
         }
     }
@@ -432,14 +452,23 @@ private:
     double Idle(
         geometry_msgs::Point& ci, const geometry_msgs::Point& cw,
         const geometry_msgs::Point& PEP, int& gait_phase,
-        const double& init_phase, const double& theta, const int& verbose)
+        const double& init_phase, const double& theta, double& leg_yaw,
+        const double& phi_plus, const int& verbose)
     {
-        double stride_time, support_time, support_phase;
+        double support_time, support_phase;
         double remaining_support_time, leg_speed;
         double dist_ci_PEP;
+        // double tG_plus;
 
         ci = cw; // constant for idle state
         gait_phase = 1;
+
+        // tG_plus = fmod(init_phase + duty_factor - tG, 1.0);
+        // if (tG_plus < 0.0)
+        // {
+        //     tG_plus += 1.0;
+        // }
+        // leg_yaw = phi_plus/tG_plus;
         
         // TODO: update to only run below code once?
         support_time = abs(2.0*theta/yaw);
@@ -457,8 +486,9 @@ private:
         
         if (verbose >= 2)
         {
-            ROS_INFO("stride_time: %.3f, support_phase: %.3f", stride_time, support_phase);
-            // ROS_INFO("remaining_support_time: %.3f, dist_ci_PEP: %.3f, leg_speed: %.3f", remaining_support_time, dist_ci_PEP, leg_speed);
+            ROS_INFO("tG: %4.3e, delta_tG: %4.3e, delta_phi: %4.3e", tG, delta_tG, delta_phi);
+            ROS_INFO("support_time: %4.3e, support_phase: %.3f", support_time, support_phase);
+            ROS_INFO("remaining_support_time: %4.3e, dist_ci_PEP: %4.3e, leg_speed: %4.3e", remaining_support_time, dist_ci_PEP, leg_speed);
         }
 
         return leg_speed;
@@ -467,26 +497,29 @@ private:
     void Initialize(
         geometry_msgs::Point& ci, int& gait_phase,
         const double& init_phase, bool& initialized,
-        const double& leg_speed, const double& phi_i,
-        const geometry_msgs::Point& PEP, const double& phi_PEP,
-        const int& verbose)
+        const double& leg_speed, double& phi_plus,
+        const geometry_msgs::Point& PEP,
+        double& leg_yaw, const int& verbose)
     {
         // Assumes that robot legs will only ever start in support phase due to designed phase overlap
 
-        double phi_minus, leg_delta;
+        double tG_plus, leg_delta;
 
         gait_phase = 1;
-        phi_minus = dir*(phi_PEP - phi_i);
-        if (verbose >= 2)
+        tG_plus = fmod(init_phase + duty_factor - tG, 1.0);
+        if (tG_plus < 0.0)
         {
-            ROS_INFO("phi_minus: %4.3e", phi_minus);
+            tG_plus += 1.0;
         }
+        leg_yaw = phi_plus/tG_plus;
 
         // Reached PEP, set to initialized
-        if (phi_minus <= 0.0)
+        if (phi_plus <= 0.0)
         {
             ci = PEP;
             gait_phase = 2;
+            phi_plus = 0.0;
+            leg_yaw = 1e6;
             initialized = true;
             if (verbose >= 2)
             {
@@ -502,6 +535,7 @@ private:
 
         if (verbose >= 2)
         {
+            ROS_INFO("tG: %4.3e, delta_tG: %4.3e, tG+: %.3f, delta_phi: %4.3e", tG, delta_tG, tG_plus, delta_phi);
             ROS_INFO("init_phase: %.3f, leg_speed: %.3f, leg_delta: %.4f", init_phase, leg_speed, leg_delta);
         }
     }
@@ -510,11 +544,11 @@ private:
         geometry_msgs::Point& ci, int& gait_phase, const double& init_phase,
         const double& rmw, const double& phi_i,
         const geometry_msgs::Point& AEP, const geometry_msgs::Point& PEP,
-        const double& phi_AEP, const double& phi_PEP,
+        const double& phi_AEP, const double& phi_PEP, double& leg_yaw,
         const int& verbose)
     {
         double alpha, d_AEP, d_PEP, PEP_to_AEP, phi_plus, phi_minus;
-        double tG_plus, k_plus, leg_yaw;
+        double tG_plus, k_plus;
 
         alpha = atan2(AEP.y - ci.y, AEP.x - ci.x);
         d_AEP = sqrt(pow(AEP.x - ci.x, 2) + pow(AEP.y - ci.y, 2));
@@ -522,21 +556,32 @@ private:
         phi_plus = dir*(phi_PEP - phi_i); // remaining support angle
         phi_minus = dir*(phi_i - phi_AEP); // remaining transfer angle
 
-        tG_plus = fmod(init_phase + duty_factor - tG, 1.0);
-
         // Support Phase
         if (gait_phase == 1)
         {
-            leg_yaw = phi_plus/tG_plus;
-
-            if (leg_yaw < min_leg_yaw)
+            tG_plus = fmod(init_phase + duty_factor - tG, 1.0);
+            if (tG_plus < 0.0)
             {
-                min_leg_yaw = leg_yaw;
-                delta_tG = abs(delta_phi/min_leg_yaw);
+                tG_plus += 1.0;
             }
+            leg_yaw = phi_plus/tG_plus;
+        }
+        // Transfer Phase
+        else
+        {
+            tG_plus = fmod(init_phase - tG, 1.0);
+            if (tG_plus < 0.0)
+            {
+                tG_plus += 1.0;
+            }
+            leg_yaw = 1e6; // ensure non-grounded legs are not picked for next minimum leg yaw
         }
         
         k_plus = round(tG_plus/delta_tG);
+        if (k_plus == 0.0)
+        {
+            k_plus = 1.0; // avoid divide by 0 errors
+        }
 
         // Support Phase
         if (gait_phase == 1)
@@ -554,7 +599,6 @@ private:
         // Transfer Phase - Lifting
         else if (gait_phase == 2)
         {
-            // TODO: figure out how this can be synced to desired duty_factor
             ci.x = ci.x + (d_AEP + stride_height)*cos(alpha)/k_plus;
             ci.y = ci.y + (d_AEP + stride_height)*sin(alpha)/k_plus;
             ci.z = LPF1(-stride_height, ci.z, 0.2); // TODO: make dependent on k_plus?
@@ -570,11 +614,10 @@ private:
         // Transfer Phase - Lowering
         else if (gait_phase == 3)
         {
-            // TODO: figure out how this can be synced to desired duty_factor
             ci.x = AEP.x;
             ci.y = AEP.y;
-            // ci.z += (-base_height + stride_height + ci.z)/k_plus;
-            ci.z += (-base_height + stride_height + ci.z)/10.0; // TODO: avoid hard-coding this
+            ci.z += (-base_height + stride_height + ci.z)/k_plus;
+            // ci.z += (-base_height + stride_height + ci.z)/10.0; // TODO: avoid hard-coding this
 
             if (ci.z <= -base_height)
             {
@@ -585,8 +628,8 @@ private:
 
         if (verbose >= 2)
         {
+            ROS_INFO("tG: %4.3e, delta_tG: %4.3e, tG+: %.3f, delta_phi: %4.3e, k+: %.0f", tG, delta_tG, tG_plus, delta_phi, k_plus);
             ROS_INFO("phi_plus: %4.3e, phi_minus: %4.3e, d_AEP: %.3f, alpha: %.3f", phi_plus, phi_minus, d_AEP, alpha);
-            ROS_INFO("tG: %.3f, tG+: %.3f, delta_tG: %4.3e, leg_yaw: %4.3e, min_leg_yaw: %4.3e, k+: %.0f", tG, tG_plus, delta_tG, leg_yaw, min_leg_yaw, k_plus);
         }
     }
 
@@ -608,11 +651,6 @@ private:
 
         // once done with above procedure
         initialized = false;
-    }
-
-    void toggleState(WalkState& current_state)
-    {
-        current_state = stateTransitions[current_state];
     }
 
     void sendPoseGoal(

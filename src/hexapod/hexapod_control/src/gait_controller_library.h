@@ -48,3 +48,5 @@ std::map<WalkState, WalkState> stateTransitions = {
     {WalkState::Move,           WalkState::Uninitialize},
     {WalkState::Uninitialize,   WalkState::Idle}
 };
+
+void toggleState(WalkState& current_state);

@@ -152,3 +152,8 @@ std::tuple<double, double> calcStepRadius(
 
     return result;
 }
+
+void toggleState(WalkState& current_state)
+{
+    current_state = stateTransitions[current_state];
+}
