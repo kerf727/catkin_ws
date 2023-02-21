@@ -5,4 +5,4 @@
 - Script to solve randomly generated mazes in Gazebo environment using A* search algorithm
 - Script to autonomously explore maze and avoid obstacles using OpenCV image processing
 
-![alt text](https://github.com/kerf727/hexapod/tree/master/media/hexapod_robot_standing_pose.png?raw=true)
+![image](media/hexapod_robot_standing_pose.png)
